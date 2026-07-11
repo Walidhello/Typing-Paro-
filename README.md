@@ -1,13 +1,10 @@
-# Typing Paro?!
-Group Project
-<h3>
-Team Member:
-</h3>    
+<h1># Typing Paro?!</h1>  
+<h3>Group Project</h3>
+<h4>Team Member:</h4>    
+1. Golam Muhammad Walid
 <br>
-1.Golam Muhammad Walid
+2. Sadman Sakeef
 <br>
-2.Sadman Sakeef
+3. Ruwaid Muntajim
 <br>
-3.Ruwaid Muntajim
-<br>
-4.Ayman Ahnaf (New)
+4. Ayman Ahnaf (New)
