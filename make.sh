@@ -8,8 +8,10 @@ else
 fi
 
 # Compile the project
-clang main.c -o game \
+# Added '-Iinclude' so the compiler can find enemy.h, game.h, etc.
+clang src/*.c -o game \
     -I"$BREW_PATH/include" \
+    -Iinclude \
     -L"$BREW_PATH/lib" \
     -lraylib \
     -framework OpenGL \

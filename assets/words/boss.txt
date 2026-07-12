@@ -1,0 +1,12 @@
+supercomputer
+cybersecurity
+electromagnetism
+telecommunication
+objectoriented
+datastructure
+artificialintelligence
+machinelearning
+operatingsystem
+compilerdesign
+computernetwork
+softwareengineering
