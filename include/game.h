@@ -2,7 +2,6 @@
 #define GAME_H
 
 #include "raylib.h"
-#include "enemy.h"
 
 //------------------------------------
 // Screen Size
@@ -11,13 +10,15 @@
 #define SCREEN_HEIGHT 700
 
 //------------------------------------
-// Maximum number of enemies
+// Global Level Variables
 //------------------------------------
-
+extern int currentLevel;
+extern int wordsClearedThisLevel;
 
 //------------------------------------
 // Game Functions
 //------------------------------------
+void CheckLevelProgression(void);
 void InitGame(void);
 void UpdateGame(void);
 void DrawGame(void);

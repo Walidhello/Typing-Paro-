@@ -11,29 +11,18 @@ typedef struct
     Vector2 position;
     int width;
     int height;
-    Texture2D texture; // Add texture variable
+    Texture2D texture; 
 } Player;
-
-
-
-void UnloadPlayer(void); 
-
-//----------------------------------
-// Global Player
-//----------------------------------
 
 extern Player player;
 
 //----------------------------------
 // Player Functions
 //----------------------------------
-
 void InitPlayer(void);
-
 void UpdatePlayer(void);
-
 void DrawPlayer(void);
-
 Rectangle GetPlayerRectangle(void);
+void UnloadPlayer(void); 
 
 #endif

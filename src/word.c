@@ -5,12 +5,7 @@
 #include <string.h>
 
 char words[MAX_WORDS][WORD_LENGTH];
-
 int totalWords = 0;
-
-//----------------------------------
-// Load words from file
-//----------------------------------
 
 void LoadWords(const char *filename)
 {
@@ -33,13 +28,7 @@ void LoadWords(const char *filename)
     }
 
     fclose(file);
-
-    printf("%d words loaded.\n", totalWords);
 }
-
-//----------------------------------
-// Return random word
-//----------------------------------
 
 const char *GetRandomWord(void)
 {
@@ -47,6 +36,5 @@ const char *GetRandomWord(void)
         return "error";
 
     int index = GetRandomValue(0, totalWords - 1);
-
     return words[index];
 }

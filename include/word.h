@@ -5,7 +5,6 @@
 #define WORD_LENGTH 32
 
 void LoadWords(const char *filename);
-
 const char *GetRandomWord(void);
 
 #endif
