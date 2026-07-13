@@ -30,7 +30,7 @@ void SpawnMinions(float x, float y)
         {
             enemies[i].active = true;
             enemies[i].type = E_NORMAL;
-            enemies[i].x = x + (spawned - 1) * 70; // Spread out (-70, 0, +70)
+            enemies[i].x = x + (spawned - 1) * 70; 
             enemies[i].y = y;
             
             int targetWPM = 20 + (currentLevel - 1) * 5;
@@ -87,7 +87,6 @@ void UpdateEnemies(void)
         {
             enemies[i].y += enemies[i].speed;
 
-            // Medium Boss moves towards player's X coordinate
             if (enemies[i].type == E_MEDIUM_BOSS) {
                 if (enemies[i].x < player.position.x) enemies[i].x += enemies[i].speed * 0.6f;
                 else if (enemies[i].x > player.position.x) enemies[i].x -= enemies[i].speed * 0.6f;
@@ -104,6 +103,15 @@ void UpdateEnemies(void)
 
 void ProcessTyping(void)
 {
+    // <-- NEW CHEAT LOGIC: Instantly skip level if the apostrophe key is pressed
+    if (IsKeyPressed(KEY_APOSTROPHE))
+    {
+        targetEnemy = -1; // Reset target
+        SkipLevel();      // Progress level and clear enemies
+        return;
+    }
+    // <-- END CHEAT LOGIC
+
     int key = GetCharPressed();
 
     while (key > 0)

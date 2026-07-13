@@ -12,24 +12,40 @@
 float spawnTimer = 0.0f;
 float spawnDelay = 2.5f;
 bool gameOver = false;
+bool isPaused = false; // <-- NEW: Pause tracker
 
 int currentLevel = 1;
 int wordsClearedThisLevel = 0;
 
 //--------------------------------------------------
-// Level Progression
+// Level Progression & Cheats
 //--------------------------------------------------
 void CheckLevelProgression(void)
 {
-    // Progress level every 10 correctly typed words (cap at Level 10)
     if (wordsClearedThisLevel >= 10 && currentLevel < 10)
     {
         currentLevel++;
         wordsClearedThisLevel = 0;
         
-        // Dynamically scale down the spawn arrival delay as WPM requirements rise
         int targetWPM = 20 + (currentLevel - 1) * 5;
         spawnDelay = 60.0f / targetWPM * 0.8f; 
+    }
+}
+
+void SkipLevel(void)
+{
+    if (currentLevel < 10)
+    {
+        currentLevel++;
+        wordsClearedThisLevel = 0;
+        
+        int targetWPM = 20 + (currentLevel - 1) * 5;
+        spawnDelay = 60.0f / targetWPM * 0.8f; 
+        
+        // Clear the screen and spawn a fresh enemy for the new level
+        InitEnemies();
+        spawnTimer = 0.0f;
+        SpawnEnemy();
     }
 }
 
@@ -42,6 +58,7 @@ void InitGame(void)
     wordsClearedThisLevel = 0;
     spawnDelay = 2.5f;
     gameOver = false;
+    isPaused = false;
     spawnTimer = 0.0f;
     
     InitPlayer();
@@ -64,6 +81,15 @@ void UpdateGame(void)
         }
         return;
     }
+
+    // <-- NEW: Toggle Pause on ESCAPE
+    if (IsKeyPressed(KEY_ESCAPE))
+    {
+        isPaused = !isPaused;
+    }
+
+    // <-- NEW: If game is paused, stop updating enemies and timers
+    if (isPaused) return; 
 
     spawnTimer += GetFrameTime();
 
@@ -114,6 +140,13 @@ void DrawGame(void)
     {
         DrawText("GAME OVER", SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 - 20, 40, RED);
         DrawText("Press ENTER to Play Again", SCREEN_WIDTH/2 - 150, SCREEN_HEIGHT/2 + 30, 20, LIGHTGRAY);
+    }
+    else if (isPaused) // <-- NEW: Pause Screen UI
+    {
+        // Draws a semi-transparent black box over the whole screen
+        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.7f));
+        DrawText("PAUSED", SCREEN_WIDTH/2 - 70, SCREEN_HEIGHT/2 - 20, 40, YELLOW);
+        DrawText("Press ESC to Resume", SCREEN_WIDTH/2 - 110, SCREEN_HEIGHT/2 + 30, 20, LIGHTGRAY);
     }
 }
 
