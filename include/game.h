@@ -6,8 +6,8 @@
 //------------------------------------
 // Screen Size
 //------------------------------------
-#define SCREEN_WIDTH 900
-#define SCREEN_HEIGHT 1800
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 800
 
 //------------------------------------
 // Global Level Variables
