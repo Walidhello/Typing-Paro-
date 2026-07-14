@@ -6,7 +6,7 @@ int main(void)
     // Create Window
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "TypingParo");
 
-    // RUN THIS RIGHT HERE: Disables ESCAPE from instantly closing the game
+    // Disables ESCAPE from instantly closing the game
     SetExitKey(KEY_NULL); 
 
     // Run at 60 FPS

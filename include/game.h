@@ -19,7 +19,7 @@ extern int wordsClearedThisLevel;
 // Game Functions
 //------------------------------------
 void CheckLevelProgression(void);
-void SkipLevel(void); // <-- NEW: Cheat function
+void SkipLevel(void); //
 void InitGame(void);
 void UpdateGame(void);
 void DrawGame(void);
