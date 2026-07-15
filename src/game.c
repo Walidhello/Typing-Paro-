@@ -132,9 +132,10 @@ void DrawGame(void)
     sprintf(levelText, "Level: %d / 10", currentLevel);
     DrawText(levelText, 20, 60, 20, RAYWHITE);
     
+    //for future use////////////////
     char wpmText[32];
-    sprintf(wpmText, "Target WPM: %d", 20 + (currentLevel - 1) * 5);
-    DrawText(wpmText, 20, 85, 18, GREEN);
+    //<--want to check the wpm for future version
+    
 
     if(gameOver)
     {

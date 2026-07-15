@@ -34,7 +34,7 @@ void SpawnMinions(float x, float y)
             enemies[i].y = y;
             
             int targetWPM = 20 + (currentLevel - 1) * 5;
-            enemies[i].speed = (670.0f * targetWPM) / 3600.0f;
+            enemies[i].speed = 300.0f * GetFrameTime();
             
             strcpy(enemies[i].word, GetRandomWord());
             enemies[i].typedLetters = 0;
@@ -54,7 +54,7 @@ void SpawnEnemy(void)
             enemies[i].y = -40;
 
             int targetWPM = 20 + (currentLevel - 1) * 5;
-            enemies[i].speed = (670.0f * targetWPM) / 3600.0f; 
+            enemies[i].speed = 200.0f * GetFrameTime(); 
 
             enemies[i].type = E_NORMAL;
             int pool = 1; 
@@ -103,14 +103,14 @@ void UpdateEnemies(void)
 
 void ProcessTyping(void)
 {
-    // <-- NEW CHEAT LOGIC: Instantly skip level if the apostrophe key is pressed
+    // CHEAT LOGIC: Instantly skip level if the apostrophe key is pressed
     if (IsKeyPressed(KEY_APOSTROPHE))
     {
         targetEnemy = -1; // Reset target
         SkipLevel();      // Progress level and clear enemies
         return;
     }
-    // <-- END CHEAT LOGIC
+    // END CHEAT LOGIC
 
     int key = GetCharPressed();
 
