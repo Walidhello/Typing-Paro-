@@ -12,7 +12,7 @@
 float spawnTimer = 0.0f;
 float spawnDelay = 2.5f;
 bool gameOver = false;
-bool isPaused = false; // <-- NEW: Pause tracker
+bool isPaused = false; 
 
 int currentLevel = 1;
 int wordsClearedThisLevel = 0;
@@ -82,13 +82,13 @@ void UpdateGame(void)
         return;
     }
 
-    // <-- NEW: Toggle Pause on ESCAPE
+    // Toggle Pause on ESCAPE
     if (IsKeyPressed(KEY_ESCAPE))
     {
         isPaused = !isPaused;
     }
 
-    // <-- NEW: If game is paused, stop updating enemies and timers
+    
     if (isPaused) return; 
 
     spawnTimer += GetFrameTime();
@@ -141,7 +141,7 @@ void DrawGame(void)
         DrawText("GAME OVER", SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 - 20, 40, RED);
         DrawText("Press ENTER to Play Again", SCREEN_WIDTH/2 - 150, SCREEN_HEIGHT/2 + 30, 20, LIGHTGRAY);
     }
-    else if (isPaused) // <-- NEW: Pause Screen UI
+    else if (isPaused) // Pause Screen UI
     {
         // Draws a semi-transparent black box over the whole screen
         DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.7f));

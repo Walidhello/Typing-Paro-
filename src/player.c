@@ -31,13 +31,14 @@ void DrawPlayer(void)
 
 Rectangle GetPlayerRectangle(void)
 {
-    return (Rectangle)
-    {
-        player.position.x - player.width/2,
-        player.position.y - player.height/2,
-        player.width,
-        player.height
-    };
+    Rectangle myBox;
+    
+    myBox.x = player.position.x - player.width/2;
+    myBox.y = player.position.y - player.height/2;
+    myBox.width = player.width;
+    myBox.height = player.height;
+    
+    return myBox; 
 }
 
 void UnloadPlayer(void)
