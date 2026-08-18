@@ -7,7 +7,7 @@
 // Screen Size
 //------------------------------------
 #define SCREEN_WIDTH 900
-#define SCREEN_HEIGHT 700
+#define SCREEN_HEIGHT 1000
 
 //------------------------------------
 // Global Level Variables
@@ -15,6 +15,8 @@
 extern int currentLevel;
 extern int wordsClearedThisLevel;
 
+extern int totalChars;
+extern int correctChars;
 //------------------------------------
 // Game Functions
 //------------------------------------
@@ -24,5 +26,7 @@ void InitGame(void);
 void UpdateGame(void);
 void DrawGame(void);
 void UnloadGame(void);
+
+float GetAccuracy(void);
 
 #endif

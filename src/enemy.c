@@ -54,7 +54,7 @@ void SpawnEnemy(void)
             enemies[i].y = -40;
 
             int targetWPM = 20 + (currentLevel - 1) * 5;
-            enemies[i].speed = (670.0f * targetWPM) / 3600.0f; 
+            enemies[i].speed = (300.0f * targetWPM) / 3600.0f; 
 
             enemies[i].type = E_NORMAL;
             int pool = 1; 
@@ -116,6 +116,7 @@ void ProcessTyping(void)
 
     while (key > 0)
     {
+        totalChars++;
         if (targetEnemy == -1) 
         {
             for (int i = 0; i < MAX_ENEMIES; i++)
@@ -124,6 +125,7 @@ void ProcessTyping(void)
                 {
                     targetEnemy = i;
                     enemies[i].typedLetters = 1;
+                    correctChars++;
                     
                     if (enemies[i].typedLetters >= strlen(enemies[i].word))
                     {
@@ -145,6 +147,7 @@ void ProcessTyping(void)
             if (e->word[e->typedLetters] == key)
             {
                 e->typedLetters++;
+                correctChars++;
                 
                 if (e->typedLetters >= strlen(e->word))
                 {
