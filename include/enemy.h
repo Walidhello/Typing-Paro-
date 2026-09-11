@@ -33,8 +33,6 @@ typedef struct {
     float pivotY;
     bool headingToPlayer;
     float hitFlashTimer;
-    bool isDying;
-    float dyingTimer;
 } Enemy;
 
 extern Enemy enemies[MAX_ENEMIES];

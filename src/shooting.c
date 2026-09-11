@@ -320,9 +320,9 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
 //--------------------------------------------------
 // Internal: Spawn single projectile
 //--------------------------------------------------
-static void SpawnProjectile(Vector2 origin, Vector2 target, int targetIdx,
-                            bool isKill, EnemyType enemyType, Color coreCol,
-                            Color glowCol, float speed, float length, float width)
+static void SpawnProjectile(Vector2 origin, Vector2 target,
+                            bool isKill, EnemyType enemyType, const char* word,
+                            Color coreCol, Color glowCol, float speed, float length, float width)
 {
     for (int i = 0; i < MAX_PROJECTILES; i++)
     {
@@ -331,9 +331,10 @@ static void SpawnProjectile(Vector2 origin, Vector2 target, int targetIdx,
             projectiles[i].active = true;
             projectiles[i].position = origin;
             projectiles[i].target = target;
-            projectiles[i].targetEnemyIndex = targetIdx;
             projectiles[i].isKillShot = isKill;
             projectiles[i].enemyType = enemyType;
+            if (word) strncpy(projectiles[i].targetWord, word, sizeof(projectiles[i].targetWord) - 1);
+            else projectiles[i].targetWord[0] = '\0';
             projectiles[i].coreColor = coreCol;
             projectiles[i].glowColor = glowCol;
             projectiles[i].speed = speed;
@@ -365,14 +366,10 @@ static void SpawnProjectile(Vector2 origin, Vector2 target, int targetIdx,
 }
 
 //--------------------------------------------------
-// Fire Laser from Gunship
+// Fire Laser at Position
 //--------------------------------------------------
-void FireLaser(int targetIndex, bool isKillShot)
+void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* word, bool isKillShot)
 {
-    if (targetIndex < 0 || targetIndex >= MAX_ENEMIES) return;
-
-    Vector2 targetPos = { enemies[targetIndex].x, enemies[targetIndex].y };
-    EnemyType enemyType = enemies[targetIndex].type;
     float shipY = gunship.position.y + gunship.recoilY;
 
     if (!isKillShot)
@@ -403,12 +400,12 @@ void FireLaser(int targetIndex, bool isKillShot)
         SpawnProjectile(
             muzzlePos,
             targetPos,
-            targetIndex,
             false,
             enemyType,
+            word,
             (Color){ 240, 255, 255, 255 }, // Hot white core
             (Color){ 0, 220, 255, 200 },   // Vibrant cyan glow
-            2800.0f,
+            3000.0f,
             26.0f,
             4.0f
         );
@@ -446,12 +443,12 @@ void FireLaser(int targetIndex, bool isKillShot)
         SpawnProjectile(
             leftMuzzle,
             targetPos,
-            targetIndex,
             true,
             enemyType,
+            word,
             WHITE,
             glowCol,
-            3200.0f,
+            3400.0f,
             38.0f,
             6.0f
         );
@@ -460,12 +457,12 @@ void FireLaser(int targetIndex, bool isKillShot)
         SpawnProjectile(
             rightMuzzle,
             targetPos,
-            targetIndex,
-            true,
+            false, // secondary visual bolt (doesn't trigger duplicate explosion)
             enemyType,
+            word,
             WHITE,
             glowCol,
-            3200.0f,
+            3400.0f,
             38.0f,
             6.0f
         );
@@ -525,24 +522,14 @@ void UpdateShooting(void)
             }
             p->trail[0] = p->position;
 
-            // Target tracking if enemy is still on screen
-            if (p->targetEnemyIndex >= 0 && p->targetEnemyIndex < MAX_ENEMIES)
-            {
-                if (enemies[p->targetEnemyIndex].active)
-                {
-                    p->target.x = enemies[p->targetEnemyIndex].x;
-                    p->target.y = enemies[p->targetEnemyIndex].y;
-                }
-            }
-
-            // Direction and distance to target
+            // Distance to target
             float dx = p->target.x - p->position.x;
             float dy = p->target.y - p->position.y;
             float dist = sqrtf(dx * dx + dy * dy);
 
             float step = p->speed * dt;
 
-            if (dist <= step || dist < 22.0f)
+            if (dist <= step || dist < 25.0f)
             {
                 // Impact!
                 p->active = false;
@@ -550,54 +537,25 @@ void UpdateShooting(void)
 
                 if (!p->isKillShot)
                 {
-                    // Regular hit sparks
                     CreateHitSparks(impactPoint, p->glowColor, 9);
-                    if (p->targetEnemyIndex >= 0 && p->targetEnemyIndex < MAX_ENEMIES)
-                    {
-                        if (enemies[p->targetEnemyIndex].active)
-                        {
-                            enemies[p->targetEnemyIndex].hitFlashTimer = 0.08f;
-                        }
-                    }
                 }
                 else
                 {
-                    // Kill shot impact: Trigger massive explosion!
-                    char destroyedWord[WORD_LENGTH] = "";
-                    EnemyType eType = p->enemyType;
-
-                    if (p->targetEnemyIndex >= 0 && p->targetEnemyIndex < MAX_ENEMIES)
-                    {
-                        if (enemies[p->targetEnemyIndex].active)
-                        {
-                            strncpy(destroyedWord, enemies[p->targetEnemyIndex].word, sizeof(destroyedWord) - 1);
-                            eType = enemies[p->targetEnemyIndex].type;
-
-                            if (eType == E_HARD_BOSS)
-                            {
-                                SpawnMinions(enemies[p->targetEnemyIndex].x, enemies[p->targetEnemyIndex].y);
-                            }
-
-                            enemies[p->targetEnemyIndex].active = false;
-                            enemies[p->targetEnemyIndex].isDying = false;
-                        }
-                    }
-
-                    CreateExplosion(impactPoint, eType, destroyedWord);
+                    CreateExplosion(impactPoint, p->enemyType, p->targetWord);
                 }
             }
             else
             {
-                // Smooth steering towards target
+                // Move towards target
                 p->velocity.x = (dx / dist) * p->speed;
                 p->velocity.y = (dy / dist) * p->speed;
 
                 p->position.x += p->velocity.x * dt;
                 p->position.y += p->velocity.y * dt;
 
-                // Despawn bounds
-                if (p->position.y < 110.0f || p->position.y > SCREEN_HEIGHT + 50.0f ||
-                    p->position.x < -50.0f || p->position.x > SCREEN_WIDTH + 50.0f)
+                // Despawn bounds (ensures projectiles can reach enemies near the top of the screen)
+                if (p->position.y < -120.0f || p->position.y > SCREEN_HEIGHT + 60.0f ||
+                    p->position.x < -100.0f || p->position.x > SCREEN_WIDTH + 100.0f)
                 {
                     p->active = false;
                 }
@@ -641,7 +599,6 @@ void UpdateShooting(void)
 
                 if (pt->isSmoke)
                 {
-                    // Smoke expands as it dissipates
                     pt->size += 7.0f * dt;
                 }
             }
@@ -781,7 +738,6 @@ void DrawShootingEffects(void)
             }
             else
             {
-                // Spark drawn as a fast streak along velocity
                 float speed = sqrtf(pt->velocity.x * pt->velocity.x + pt->velocity.y * pt->velocity.y);
                 if (speed > 40.0f)
                 {
@@ -806,16 +762,10 @@ void DrawShootingEffects(void)
             float progress = mf->timer / mf->maxTimer;
             float curRadius = mf->radius * (0.8f + 0.4f * (1.0f - progress));
 
-            // Outer glow
             DrawCircleV(mf->position, curRadius * 1.6f, Fade(mf->color, 0.4f * progress));
-
-            // Mid fiery burst
             DrawCircleV(mf->position, curRadius, Fade(mf->color, 0.85f * progress));
-
-            // Inner white core
             DrawCircleV(mf->position, curRadius * 0.45f, Fade(WHITE, progress));
 
-            // Cross flare lines
             float flareLen = curRadius * 2.2f;
             Color flareCol = Fade(WHITE, 0.75f * progress);
             DrawLineEx(
@@ -844,10 +794,7 @@ void DrawShootingEffects(void)
             int drawX = (int)ft->position.x - textWidth / 2;
             int drawY = (int)ft->position.y;
 
-            // Drop shadow
             DrawText(ft->text, drawX + 1, drawY + 1, ft->fontSize, Fade(BLACK, alpha * 0.8f));
-
-            // Text
             DrawText(ft->text, drawX, drawY, ft->fontSize, Fade(ft->color, alpha));
         }
     }

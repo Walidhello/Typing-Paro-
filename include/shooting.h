@@ -17,9 +17,9 @@ typedef struct {
     Vector2 position;
     Vector2 velocity;
     Vector2 target;
-    int targetEnemyIndex;
     bool isKillShot;
     EnemyType enemyType;
+    char targetWord[WORD_LENGTH];
     Color coreColor;
     Color glowColor;
     float speed;
@@ -81,7 +81,7 @@ void UpdateShooting(void);
 void DrawShootingProjectiles(void);
 void DrawShootingEffects(void);
 
-void FireLaser(int targetIndex, bool isKillShot);
+void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* word, bool isKillShot);
 void TriggerMisfire(void);
 void CreateExplosion(Vector2 pos, EnemyType type, const char* word);
 void CreateHitSparks(Vector2 pos, Color color, int count);

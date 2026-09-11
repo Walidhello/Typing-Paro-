@@ -7,14 +7,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <math.h>
 
 int targetEnemy = -1; 
 Enemy enemies[MAX_ENEMIES];
+static int comboStreak = 0;
 
 void InitEnemies(void)
 {
     targetEnemy = -1; 
+    comboStreak = 0;
     for(int i = 0; i < MAX_ENEMIES; i++)
     {
         enemies[i].active = false;
@@ -23,8 +26,6 @@ void InitEnemies(void)
         enemies[i].headingToPlayer = false;
         enemies[i].pivotY = MEDIUM_ENEMY_PIVOT_Y;
         enemies[i].hitFlashTimer = 0.0f;
-        enemies[i].isDying = false;
-        enemies[i].dyingTimer = 0.0f;
     }
 }
 
@@ -47,11 +48,10 @@ void SpawnMinions(float x, float y)
             enemies[i].vx = 0.0f;
             enemies[i].vy = enemies[i].speed;
             
-            strcpy(enemies[i].word, GetRandomWord());
+            strncpy(enemies[i].word, GetRandomWord(), WORD_LENGTH - 1);
+            enemies[i].word[WORD_LENGTH - 1] = '\0';
             enemies[i].typedLetters = 0;
             enemies[i].hitFlashTimer = 0.0f;
-            enemies[i].isDying = false;
-            enemies[i].dyingTimer = 0.0f;
             spawned++;
         }
     }
@@ -91,10 +91,9 @@ void SpawnEnemy(void)
             enemies[i].headingToPlayer = false;
             enemies[i].pivotY = MEDIUM_ENEMY_PIVOT_Y;
             enemies[i].hitFlashTimer = 0.0f;
-            enemies[i].isDying = false;
-            enemies[i].dyingTimer = 0.0f;
 
-            strcpy(enemies[i].word, GetRandomWord());
+            strncpy(enemies[i].word, GetRandomWord(), WORD_LENGTH - 1);
+            enemies[i].word[WORD_LENGTH - 1] = '\0';
             enemies[i].typedLetters = 0;
             break;
         }
@@ -106,31 +105,28 @@ void UpdateEnemies(void)
     float dt = GetFrameTime();
     float simDt = dt * 60.0f; 
 
+    // Safety validation for active target
+    if (targetEnemy >= 0 && targetEnemy < MAX_ENEMIES)
+    {
+        if (!enemies[targetEnemy].active)
+        {
+            targetEnemy = -1;
+        }
+    }
+    else
+    {
+        targetEnemy = -1;
+    }
+
     for(int i = 0; i < MAX_ENEMIES; i++)
     {
         if(enemies[i].active)
         {
-            // Hit flash timer update
+            // Hit flash timer decay
             if (enemies[i].hitFlashTimer > 0.0f)
             {
                 enemies[i].hitFlashTimer -= dt;
                 if (enemies[i].hitFlashTimer < 0.0f) enemies[i].hitFlashTimer = 0.0f;
-            }
-
-            // Dying state safety timeout (detonates if projectile takes too long)
-            if (enemies[i].isDying)
-            {
-                enemies[i].dyingTimer -= dt;
-                if (enemies[i].dyingTimer <= 0.0f)
-                {
-                    CreateExplosion((Vector2){ enemies[i].x, enemies[i].y }, enemies[i].type, enemies[i].word);
-                    if (enemies[i].type == E_HARD_BOSS) {
-                        SpawnMinions(enemies[i].x, enemies[i].y);
-                    }
-                    enemies[i].active = false;
-                    enemies[i].isDying = false;
-                }
-                continue;
             }
 
             if (enemies[i].type == E_MEDIUM_BOSS) 
@@ -153,6 +149,7 @@ void UpdateEnemies(void)
             enemies[i].x += enemies[i].vx * simDt;
             enemies[i].y += enemies[i].vy * simDt;
 
+            // Despawn bounds
             if(enemies[i].y > SCREEN_HEIGHT + 50 || 
                enemies[i].y < -150 || 
                enemies[i].x < -150 || 
@@ -175,6 +172,19 @@ void ProcessTyping(void)
         return;
     }
 
+    // Safety check: Reset target if it is invalid or inactive
+    if (targetEnemy >= 0 && targetEnemy < MAX_ENEMIES)
+    {
+        if (!enemies[targetEnemy].active)
+        {
+            targetEnemy = -1;
+        }
+    }
+    else
+    {
+        targetEnemy = -1;
+    }
+
     int key = GetCharPressed();
     bool anyKeyProcessed = false;
     bool anyKeyHit = false;
@@ -184,29 +194,45 @@ void ProcessTyping(void)
         anyKeyProcessed = true;
         totalChars++;
 
+        int inputChar = tolower(key);
+
         if (targetEnemy == -1) 
         {
             for (int i = 0; i < MAX_ENEMIES; i++)
             {
-                if (enemies[i].active && !enemies[i].isDying && enemies[i].word[0] == key)
+                if (enemies[i].active && tolower((unsigned char)enemies[i].word[0]) == inputChar)
                 {
                     targetEnemy = i;
                     enemies[i].typedLetters = 1;
                     correctChars++;
                     anyKeyHit = true;
-                    
+
+                    comboStreak++;
+                    currentCombo = 1 + (comboStreak / 8);
+                    if (currentCombo > 5) currentCombo = 5;
+                    if (currentCombo > maxCombo) maxCombo = currentCombo;
+                    currentScore += 15 * currentLevel * currentCombo;
+
+                    enemies[i].hitFlashTimer = 0.12f;
+
                     if (enemies[i].typedLetters >= (int)strlen(enemies[i].word))
                     {
-                        FireLaser(i, true);
-                        enemies[i].isDying = true;
-                        enemies[i].dyingTimer = 0.35f;
+                        currentScore += 120 * currentLevel * currentCombo;
+                        FireLaserAtPosition((Vector2){ enemies[i].x, enemies[i].y }, enemies[i].type, enemies[i].word, true);
+
+                        if (enemies[i].type == E_HARD_BOSS)
+                        {
+                            SpawnMinions(enemies[i].x, enemies[i].y);
+                        }
+
+                        enemies[i].active = false;
                         targetEnemy = -1;
                         wordsClearedThisLevel++;
                         CheckLevelProgression();
                     }
                     else
                     {
-                        FireLaser(i, false);
+                        FireLaserAtPosition((Vector2){ enemies[i].x, enemies[i].y }, enemies[i].type, enemies[i].word, false);
                     }
                     break; 
                 }
@@ -215,33 +241,49 @@ void ProcessTyping(void)
         else 
         {
             Enemy* e = &enemies[targetEnemy];
-            if (e->active && !e->isDying && e->word[e->typedLetters] == key)
+            if (e->active && tolower((unsigned char)e->word[e->typedLetters]) == inputChar)
             {
                 e->typedLetters++;
                 correctChars++;
                 anyKeyHit = true;
-                
+
+                comboStreak++;
+                currentCombo = 1 + (comboStreak / 8);
+                if (currentCombo > 5) currentCombo = 5;
+                if (currentCombo > maxCombo) maxCombo = currentCombo;
+                currentScore += 15 * currentLevel * currentCombo;
+
+                e->hitFlashTimer = 0.12f;
+
                 if (e->typedLetters >= (int)strlen(e->word))
                 {
-                    FireLaser(targetEnemy, true);
-                    e->isDying = true;
-                    e->dyingTimer = 0.35f;
+                    currentScore += 120 * currentLevel * currentCombo;
+                    FireLaserAtPosition((Vector2){ e->x, e->y }, e->type, e->word, true);
+
+                    if (e->type == E_HARD_BOSS)
+                    {
+                        SpawnMinions(e->x, e->y);
+                    }
+
+                    e->active = false;
                     targetEnemy = -1;
                     wordsClearedThisLevel++;
                     CheckLevelProgression();
                 }
                 else
                 {
-                    FireLaser(targetEnemy, false);
+                    FireLaserAtPosition((Vector2){ e->x, e->y }, e->type, e->word, false);
                 }
             }
         }
         key = GetCharPressed(); 
     }
 
-    // Misfire feedback if a key was pressed that didn't hit any target
+    // Misfire feedback & combo reset if an invalid key was typed
     if (anyKeyProcessed && !anyKeyHit)
     {
+        comboStreak = 0;
+        currentCombo = 1;
         TriggerMisfire();
     }
 }
@@ -265,14 +307,6 @@ void DrawEnemies(void)
                 boxColor = WHITE;
             }
 
-            // Dying vibration
-            if (enemies[i].isDying)
-            {
-                drawX += (float)GetRandomValue(-2, 2);
-                drawY += (float)GetRandomValue(-2, 2);
-                boxColor = (GetRandomValue(0, 1) == 0) ? WHITE : boxColor;
-            }
-
             // Draw Enemy Ship / Hull Box
             DrawRectangle((int)drawX - 20, (int)drawY - 20, 40, 40, boxColor);
 
@@ -286,10 +320,10 @@ void DrawEnemies(void)
             }
 
             // Sci-fi Lock-on Target Reticle (for active target)
-            if (i == targetEnemy && !enemies[i].isDying)
+            if (i == targetEnemy)
             {
                 Color reticleColor = (Color){ 60, 255, 140, 230 }; // Vibrant neon green
-                float bLen = 8.0f;  // Corner length
+                float bLen = 8.0f;
                 float pad = 26.0f;
 
                 // Top-Left corner
@@ -309,26 +343,23 @@ void DrawEnemies(void)
                 DrawLine((int)(drawX + pad), (int)(drawY + pad), (int)(drawX + pad), (int)(drawY + pad - bLen), reticleColor);
             }
 
-            // Word badge (only displayed while alive and active)
-            if (!enemies[i].isDying)
-            {
-                const char* remainingText = &enemies[i].word[enemies[i].typedLetters];
-                int textW = MeasureText(remainingText, 20);
-                int badgeW = (textW + 20 > 70) ? textW + 20 : 70;
+            // Word badge (showing full word with typed characters distinguished)
+            const char* remainingText = &enemies[i].word[enemies[i].typedLetters];
+            int textW = MeasureText(remainingText, 20);
+            int badgeW = (textW + 20 > 70) ? textW + 20 : 70;
 
-                DrawRectangle((int)drawX - badgeW / 2, (int)drawY - 45, badgeW, 22, (Color){ 20, 20, 30, 230 });
-                DrawRectangleLines((int)drawX - badgeW / 2, (int)drawY - 45, badgeW, 22, DARKGRAY);
+            DrawRectangle((int)drawX - badgeW / 2, (int)drawY - 45, badgeW, 22, (Color){ 20, 20, 30, 230 });
+            DrawRectangleLines((int)drawX - badgeW / 2, (int)drawY - 45, badgeW, 22, DARKGRAY);
 
-                Color textColor = (i == targetEnemy) ? (Color){ 80, 255, 120, 255 } : WHITE; 
+            Color textColor = (i == targetEnemy) ? (Color){ 80, 255, 120, 255 } : WHITE; 
 
-                DrawText(
-                    remainingText,
-                    (int)drawX - textW / 2,
-                    (int)drawY - 44,
-                    20,
-                    textColor
-                );
-            }
+            DrawText(
+                remainingText,
+                (int)drawX - textW / 2,
+                (int)drawY - 44,
+                20,
+                textColor
+            );
         }
     }
 }
