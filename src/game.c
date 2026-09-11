@@ -20,6 +20,7 @@ int wordsClearedThisLevel = 0;
 
 int totalChars = 0;
 int correctChars = 0;
+float typingTime = 0.0f;
 
 //--------------------------------------------------
 // Level Progression & Cheats
@@ -63,6 +64,7 @@ void InitGame(void)
     spawnDelay = 2.5f;
     totalChars = 0;
     correctChars = 0;
+    typingTime = 0.0f;
     gameOver = false;
     isPaused = false;
     spawnTimer = 0.0f;
@@ -110,6 +112,11 @@ void UpdateGame(void)
     ProcessTyping();
     UpdateGunship();
 
+    if (totalChars > 0)
+    {
+        typingTime += GetFrameTime();
+    }
+
     // Collision check
     for(int i = 0; i < MAX_ENEMIES; i++)
     {
@@ -128,6 +135,15 @@ float GetAccuracy(void)
         return 100.0f;
 
     return ((float)correctChars / totalChars) * 100.0f;
+}
+float GetLiveWPM(void)
+{
+    if (typingTime <= 0.0f)
+        return 0.0f;
+
+    float minutes = typingTime / 60.0f;
+
+    return ((float)correctChars / 5.0f) / minutes;
 }
 //--------------------------------------------------
 // Draw Game
@@ -156,10 +172,10 @@ void DrawGame(void)
     DrawRectangle(290, 20, 150, 80, (Color){25, 25, 40, 255});
     DrawRectangleLines(290, 20, 150, 80, DARKGRAY);
 
-    DrawText("TARGET WPM", 305, 32, 16, LIGHTGRAY);
+    DrawText("LIVE WPM", 305, 32, 16, LIGHTGRAY);
 
     char wpmText[32];
-    sprintf(wpmText, "%d", 20 + (currentLevel - 1) * 5);
+    sprintf(wpmText, "%.1f", GetLiveWPM());
 
     int wpmWidth = MeasureText(wpmText, 28);
 

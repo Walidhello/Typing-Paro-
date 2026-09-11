@@ -28,5 +28,6 @@ void DrawGame(void);
 void UnloadGame(void);
 
 float GetAccuracy(void);
+float GetLiveWPM(void);
 
 #endif
