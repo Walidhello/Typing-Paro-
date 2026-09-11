@@ -8,6 +8,11 @@ typedef struct
     Vector2 position;
     float width;
     float height;
+    float recoilY;
+    float cannonGlowLeft;
+    float cannonGlowRight;
+    float flameBoost;
+    float misfireTimer;
 } Gunship;
 
 extern Gunship gunship;

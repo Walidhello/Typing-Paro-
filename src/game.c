@@ -3,6 +3,7 @@
 #include "player.h"
 #include "word.h"
 #include "gunship.h"
+#include "shooting.h"
 #include "raylib.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -13,7 +14,7 @@
 float spawnTimer = 0.0f;
 float spawnDelay = 2.5f;
 bool gameOver = false;
-bool isPaused = false; // <-- NEW: Pause tracker
+bool isPaused = false;
 
 int currentLevel = 1;
 int wordsClearedThisLevel = 0;
@@ -46,8 +47,8 @@ void SkipLevel(void)
         int targetWPM = 20 + (currentLevel - 1) * 5;
         spawnDelay = 60.0f / targetWPM * 0.8f; 
         
-        // Clear the screen and spawn a fresh enemy for the new level
         InitEnemies();
+        InitShooting();
         spawnTimer = 0.0f;
         SpawnEnemy();
     }
@@ -69,6 +70,7 @@ void InitGame(void)
     
     InitPlayer();
     InitGunship();
+    InitShooting();
     LoadWords("assets/words/easy.txt");
     InitEnemies();
 
@@ -89,13 +91,11 @@ void UpdateGame(void)
         return;
     }
 
-    // <-- NEW: Toggle Pause on ESCAPE
     if (IsKeyPressed(KEY_ESCAPE))
     {
         isPaused = !isPaused;
     }
 
-    // <-- NEW: If game is paused, stop updating enemies and timers
     if (isPaused) return; 
 
     spawnTimer += GetFrameTime();
@@ -109,11 +109,12 @@ void UpdateGame(void)
     UpdateEnemies();
     ProcessTyping();
     UpdateGunship();
+    UpdateShooting();
 
     // Collision check
     for(int i = 0; i < MAX_ENEMIES; i++)
     {
-        if(enemies[i].active)
+        if(enemies[i].active && !enemies[i].isDying)
         {
             if(enemies[i].y >= player.position.y - (player.height / 2))
             {
@@ -122,6 +123,7 @@ void UpdateGame(void)
         }
     }
 }
+
 float GetAccuracy(void)
 {
     if (totalChars == 0)
@@ -129,6 +131,7 @@ float GetAccuracy(void)
 
     return ((float)correctChars / totalChars) * 100.0f;
 }
+
 //--------------------------------------------------
 // Draw Game
 //--------------------------------------------------
@@ -136,11 +139,44 @@ void DrawGame(void)
 {
     ClearBackground(BLACK);
 
-    DrawRectangle(0,130,SCREEN_WIDTH,SCREEN_HEIGHT - 130,(Color){8, 8, 14, 255});
+    // Apply Screen Shake Camera to battlefield
+    Vector2 shake = GetScreenShakeOffset();
+    Camera2D camera = { 0 };
+    camera.offset = shake;
+    camera.zoom = 1.0f;
 
+    BeginMode2D(camera);
+
+    // Deep space battlefield background
+    DrawRectangle(0, 130, SCREEN_WIDTH, SCREEN_HEIGHT - 130, (Color){8, 8, 14, 255});
+
+    // Space grid lines
+    for (int y = 180; y < SCREEN_HEIGHT; y += 80)
+    {
+        DrawLine(0, y, SCREEN_WIDTH, y, (Color){18, 20, 30, 255});
+    }
+    for (int x = 100; x < SCREEN_WIDTH; x += 100)
+    {
+        DrawLine(x, 130, x, SCREEN_HEIGHT, (Color){18, 20, 30, 255});
+    }
+
+    // Draw active projectiles (under enemies)
+    DrawShootingProjectiles();
+
+    // Draw player's gunship
     DrawGunship();
+
+    // Draw enemies
     DrawEnemies();
 
+    // Draw shooting visual effects (muzzle flashes, hit sparks, explosions, shockwaves, text)
+    DrawShootingEffects();
+
+    EndMode2D();
+
+    // =====================================================
+    // UI HUD HEADER (Stable, unaffected by camera shake)
+    // =====================================================
     DrawRectangle(0, 0, SCREEN_WIDTH, 130, (Color){15, 15, 25, 255});
     DrawLine(0, 130, SCREEN_WIDTH, 130, DARKGRAY);
 
@@ -160,10 +196,8 @@ void DrawGame(void)
 
     char wpmText[32];
     sprintf(wpmText, "%d", 20 + (currentLevel - 1) * 5);
-
     int wpmWidth = MeasureText(wpmText, 28);
-
-    DrawText(wpmText,365 - wpmWidth / 2,58,28,GREEN);
+    DrawText(wpmText, 365 - wpmWidth / 2, 58, 28, GREEN);
 
     // Accuracy card
     DrawRectangle(460, 20, 150, 80, (Color){25, 25, 40, 255});
@@ -173,19 +207,17 @@ void DrawGame(void)
 
     char accuracyText[32];
     sprintf(accuracyText, "%.1f%%", GetAccuracy());
-
     int accuracyWidth = MeasureText(accuracyText, 28);
-
-    DrawText(accuracyText,535 - accuracyWidth / 2,58,28,YELLOW);
+    DrawText(accuracyText, 535 - accuracyWidth / 2, 58, 28, YELLOW);
 
     if(gameOver)
     {
+        DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.75f));
         DrawText("GAME OVER", SCREEN_WIDTH/2 - 128, SCREEN_HEIGHT/2 - 20, 40, RED);
         DrawText("Press ENTER to Play Again", SCREEN_WIDTH/2 - 145, SCREEN_HEIGHT/2 + 30, 20, LIGHTGRAY);
     }
-    else if (isPaused) // <-- NEW: Pause Screen UI
+    else if (isPaused)
     {
-        // Draws a semi-transparent black box over the whole screen
         DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Fade(BLACK, 0.7f));
         DrawText("PAUSED", SCREEN_WIDTH/2 - 70, SCREEN_HEIGHT/2 - 20, 40, YELLOW);
         DrawText("Press ESC to Resume", SCREEN_WIDTH/2 - 110, SCREEN_HEIGHT/2 + 30, 20, LIGHTGRAY);

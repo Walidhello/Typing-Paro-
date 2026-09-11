@@ -10,8 +10,9 @@ SRC = src/main.c \
       src/game.c \
       src/enemy.c \
       src/player.c \
-	  src/word.c\
-      src/gunship.c
+	  src/word.c \
+      src/gunship.c \
+      src/shooting.c
 
 $(PROJECT).exe: $(SRC)
 	$(CC) $(SRC) -o $(PROJECT).exe $(CFLAGS) $(LDFLAGS)

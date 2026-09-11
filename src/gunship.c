@@ -1,5 +1,7 @@
 #include "gunship.h"
 #include "game.h"
+#include "shooting.h"
+#include <math.h>
 
 Gunship gunship;
 
@@ -10,32 +12,92 @@ void InitGunship(void)
 
     gunship.position.x = SCREEN_WIDTH / 2.0f;
     gunship.position.y = SCREEN_HEIGHT - 90;
+    gunship.recoilY = 0.0f;
+    gunship.cannonGlowLeft = 0.0f;
+    gunship.cannonGlowRight = 0.0f;
+    gunship.flameBoost = 0.0f;
+    gunship.misfireTimer = 0.0f;
 }
+
 void UpdateGunship(void)
 {
-    // Gunship currently stays stationary.
+    float dt = GetFrameTime();
+
+    // Smooth recoil spring recovery
+    if (gunship.recoilY > 0.0f)
+    {
+        gunship.recoilY -= 18.0f * dt;
+        if (gunship.recoilY < 0.0f) gunship.recoilY = 0.0f;
+    }
+
+    // Decay cannon energy glow
+    if (gunship.cannonGlowLeft > 0.0f)
+    {
+        gunship.cannonGlowLeft -= 3.0f * dt;
+        if (gunship.cannonGlowLeft < 0.0f) gunship.cannonGlowLeft = 0.0f;
+    }
+    if (gunship.cannonGlowRight > 0.0f)
+    {
+        gunship.cannonGlowRight -= 3.0f * dt;
+        if (gunship.cannonGlowRight < 0.0f) gunship.cannonGlowRight = 0.0f;
+    }
+
+    // Decay engine flame boost
+    if (gunship.flameBoost > 0.0f)
+    {
+        gunship.flameBoost -= 25.0f * dt;
+        if (gunship.flameBoost < 0.0f) gunship.flameBoost = 0.0f;
+    }
+
+    // Decay misfire indicator
+    if (gunship.misfireTimer > 0.0f)
+    {
+        gunship.misfireTimer -= dt;
+        if (gunship.misfireTimer < 0.0f) gunship.misfireTimer = 0.0f;
+    }
+
+    // Emit subtle engine thrust particles
+    float shipY = gunship.position.y + gunship.recoilY;
+    if (GetRandomValue(0, 2) == 0)
+    {
+        float speed = (float)GetRandomValue(70, 140) + gunship.flameBoost * 2.0f;
+        AddExhaustParticle(
+            (Vector2){ gunship.position.x - 25.0f + GetRandomValue(-4, 4), shipY + 45.0f },
+            (Vector2){ (float)GetRandomValue(-10, 10), speed },
+            (Color){ 0, 180, 255, 200 }
+        );
+        AddExhaustParticle(
+            (Vector2){ gunship.position.x + 25.0f + GetRandomValue(-4, 4), shipY + 45.0f },
+            (Vector2){ (float)GetRandomValue(-10, 10), speed },
+            (Color){ 0, 180, 255, 200 }
+        );
+    }
 }
 
 void DrawGunship(void)
 {
     float x = gunship.position.x;
-    float y = gunship.position.y;
+    float y = gunship.position.y + gunship.recoilY;
 
     // =====================================================
-    // ENGINE FLAMES
+    // DYNAMIC ENGINE FLAMES
     // =====================================================
+    float flameFlicker = sinf(GetTime() * 38.0f) * 4.0f + (float)GetRandomValue(-2, 2);
+    float flameExtra = gunship.flameBoost + flameFlicker;
+    float flameTipY = y + 55.0f + flameExtra;
+    float flameCoreTipY = y + 47.0f + flameExtra * 0.75f;
 
     // Left flame
     DrawTriangle(
         (Vector2){x - 35, y + 25},
-        (Vector2){x - 25, y + 55},
+        (Vector2){x - 25, flameTipY},
         (Vector2){x - 15, y + 25},
         BLUE
     );
 
     DrawTriangle(
         (Vector2){x - 31, y + 26},
-        (Vector2){x - 25, y + 47},
+        (Vector2){x - 25, flameCoreTipY},
         (Vector2){x - 19, y + 26},
         SKYBLUE
     );
@@ -44,14 +106,14 @@ void DrawGunship(void)
     DrawTriangle(
         (Vector2){x + 35, y + 25},
         (Vector2){x + 15, y + 25},
-        (Vector2){x + 25, y + 55},
+        (Vector2){x + 25, flameTipY},
         BLUE
     );
 
     DrawTriangle(
         (Vector2){x + 31, y + 26},
         (Vector2){x + 19, y + 26},
-        (Vector2){x + 25, y + 47},
+        (Vector2){x + 25, flameCoreTipY},
         SKYBLUE
     );
 
@@ -67,6 +129,25 @@ void DrawGunship(void)
     DrawCircle(x + 25, y + 22, 9, DARKBLUE);
     DrawCircle(x + 25, y + 22, 5, SKYBLUE);
     DrawCircle(x + 25, y + 22, 2, WHITE);
+
+
+    // =====================================================
+    // CANNONS & BARRELS (Extending forward)
+    // =====================================================
+
+    // Left cannon barrel
+    DrawRectangle(x - 25, y - 8, 7, 46, DARKGRAY);
+    DrawRectangle(x - 24, y - 12, 5, 5, (Color){25, 30, 40, 255}); // Muzzle tip
+    Color leftConduitColor = (gunship.cannonGlowLeft > 0.0f) ?
+        Fade(SKYBLUE, fminf(gunship.cannonGlowLeft * 3.5f, 1.0f)) : (Color){45, 60, 80, 255};
+    DrawRectangle(x - 23, y - 7, 3, 23, leftConduitColor); // Energy conduit
+
+    // Right cannon barrel
+    DrawRectangle(x + 18, y - 8, 7, 46, DARKGRAY);
+    DrawRectangle(x + 19, y - 12, 5, 5, (Color){25, 30, 40, 255}); // Muzzle tip
+    Color rightConduitColor = (gunship.cannonGlowRight > 0.0f) ?
+        Fade(SKYBLUE, fminf(gunship.cannonGlowRight * 3.5f, 1.0f)) : (Color){45, 60, 80, 255};
+    DrawRectangle(x + 20, y - 7, 3, 23, rightConduitColor); // Energy conduit
 
 
     // =====================================================
@@ -195,38 +276,16 @@ void DrawGunship(void)
 
 
     // =====================================================
-    // CANNONS
-    // =====================================================
-
-    // Left cannon
-    DrawRectangle(
-        x - 25,
-        y + 16,
-        7,
-        22,
-        DARKGRAY
-    );
-
-    // Right cannon
-    DrawRectangle(
-        x + 18,
-        y + 16,
-        7,
-        22,
-        DARKGRAY
-    );
-
-
-    // =====================================================
     // WEAPON POD LIGHTS
     // =====================================================
 
+    Color podColor = (gunship.misfireTimer > 0.0f) ? RED : ORANGE;
     DrawRectangle(
         x - 60,
         y + 8,
         6,
         4,
-        ORANGE
+        podColor
     );
 
     DrawRectangle(
@@ -234,7 +293,7 @@ void DrawGunship(void)
         y + 8,
         6,
         4,
-        ORANGE
+        podColor
     );
 
 

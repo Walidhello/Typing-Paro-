@@ -32,16 +32,20 @@ typedef struct {
     int typedLetters;
     float pivotY;
     bool headingToPlayer;
+    float hitFlashTimer;
+    bool isDying;
+    float dyingTimer;
 } Enemy;
 
-
 extern Enemy enemies[MAX_ENEMIES];
+extern int targetEnemy;
 
 //------------------------------------
 // Enemy Functions
 //------------------------------------
 void InitEnemies(void);
 void SpawnEnemy(void);
+void SpawnMinions(float x, float y);
 void UpdateEnemies(void);
 void DrawEnemies(void);
 void ProcessTyping(void);
