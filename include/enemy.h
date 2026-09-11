@@ -6,6 +6,7 @@
 
 #define WORD_LENGTH 32
 #define MAX_ENEMIES 20
+#define MEDIUM_ENEMY_PIVOT_Y 250.0f
 
 //------------------------------------
 // Enemy Types
@@ -19,16 +20,20 @@ typedef enum {
 //------------------------------------
 // Enemy Structure
 //------------------------------------
-typedef struct
-{
+typedef struct {
+    bool active;
+    EnemyType type;
     float x;
     float y;
     float speed;
+    float vx; 
+    float vy; 
     char word[WORD_LENGTH];
     int typedLetters;
-    bool active;
-    EnemyType type;
+    float pivotY;
+    bool headingToPlayer;
 } Enemy;
+
 
 extern Enemy enemies[MAX_ENEMIES];
 

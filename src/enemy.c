@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 int targetEnemy = -1; 
 Enemy enemies[MAX_ENEMIES];
@@ -16,6 +17,10 @@ void InitEnemies(void)
     for(int i = 0; i < MAX_ENEMIES; i++)
     {
         enemies[i].active = false;
+        enemies[i].vx = 0.0f;
+        enemies[i].vy = 0.0f;
+        enemies[i].headingToPlayer = false;
+        enemies[i].pivotY = MEDIUM_ENEMY_PIVOT_Y;
     }
 }
 
@@ -33,8 +38,10 @@ void SpawnMinions(float x, float y)
             enemies[i].x = x + (spawned - 1) * 70; 
             enemies[i].y = y;
             
-            int targetWPM = 20 + (currentLevel - 1) * 5;
-            enemies[i].speed = (670.0f * targetWPM) / 3600.0f;
+            int targetWPM = 20;
+            enemies[i].speed = (300.0f * targetWPM) / 3600.0f;
+            enemies[i].vx = 0.0f;
+            enemies[i].vy = enemies[i].speed;
             
             strcpy(enemies[i].word, GetRandomWord());
             enemies[i].typedLetters = 0;
@@ -42,6 +49,7 @@ void SpawnMinions(float x, float y)
         }
     }
 }
+
 
 void SpawnEnemy(void)
 {
@@ -53,7 +61,8 @@ void SpawnEnemy(void)
             enemies[i].x = GetRandomValue(80, SCREEN_WIDTH - 80);
             enemies[i].y = -40;
 
-            int targetWPM = 20 + (currentLevel - 1) * 5;
+            int targetWPM = 20;
+            // + (currentLevel - 1) * 5;
             enemies[i].speed = (300.0f * targetWPM) / 3600.0f; 
 
             enemies[i].type = E_NORMAL;
@@ -72,6 +81,12 @@ void SpawnEnemy(void)
                 LoadWords("assets/words/easy.txt");
             }
 
+            // All enemies start with a straight projection downward
+            enemies[i].vx = 0.0f;
+            enemies[i].vy = enemies[i].speed;
+            enemies[i].headingToPlayer = false;
+            enemies[i].pivotY = MEDIUM_ENEMY_PIVOT_Y;
+
             strcpy(enemies[i].word, GetRandomWord());
             enemies[i].typedLetters = 0;
             break;
@@ -79,20 +94,46 @@ void SpawnEnemy(void)
     }
 }
 
+
 void UpdateEnemies(void)
 {
+    // Normalize delta time to 60 FPS so your existing speed calculations remain unchanged
+    float dt = GetFrameTime() * 60.0f; 
+
     for(int i = 0; i < MAX_ENEMIES; i++)
     {
         if(enemies[i].active)
         {
-            enemies[i].y += enemies[i].speed;
+            if (enemies[i].type == E_MEDIUM_BOSS) 
+            {
+                // 1. Calculate direction to the player continuously
+                float dx = player.position.x - enemies[i].x;
+                float dy = player.position.y - enemies[i].y;
+                float length = sqrtf(dx * dx + dy * dy);
 
-            if (enemies[i].type == E_MEDIUM_BOSS) {
-                if (enemies[i].x < player.position.x) enemies[i].x += enemies[i].speed * 0.6f;
-                else if (enemies[i].x > player.position.x) enemies[i].x -= enemies[i].speed * 0.6f;
+                if (length > 0.0f) 
+                {
+                    // 2. Determine where the boss *wants* to go
+                    float desired_vx = (dx / length) * enemies[i].speed;
+                    float desired_vy = (dy / length) * enemies[i].speed;
+
+                    // 3. Smoothly steer (Lerp) current velocity towards desired velocity
+                    // Adjust 0.04f to change how wide or tight the fluid curve is
+                    float smoothing = 0.04f;
+                    enemies[i].vx += (desired_vx - enemies[i].vx) * smoothing * dt;
+                    enemies[i].vy += (desired_vy - enemies[i].vy) * smoothing * dt;
+                }
             }
 
-            if(enemies[i].y > SCREEN_HEIGHT + 50)
+            // Apply the velocity multiplied by delta time to eliminate micro-stutters
+            enemies[i].x += enemies[i].vx * dt;
+            enemies[i].y += enemies[i].vy * dt;
+
+            // Despawn boundaries (expanded to accommodate curved trajectories)
+            if(enemies[i].y > SCREEN_HEIGHT + 50 || 
+               enemies[i].y < -150 || 
+               enemies[i].x < -150 || 
+               enemies[i].x > SCREEN_WIDTH + 150)
             {
                 enemies[i].active = false;
                 if(targetEnemy == i) targetEnemy = -1; 
@@ -101,16 +142,17 @@ void UpdateEnemies(void)
     }
 }
 
+
 void ProcessTyping(void)
 {
-    // <-- NEW CHEAT LOGIC: Instantly skip level if the apostrophe key is pressed
+    // NEW CHEAT LOGIC: Instantly skip level if the apostrophe key is pressed
     if (IsKeyPressed(KEY_APOSTROPHE))
     {
         targetEnemy = -1; // Reset target
         SkipLevel();      // Progress level and clear enemies
         return;
     }
-    // <-- END CHEAT LOGIC
+    // END CHEAT LOGIC
 
     int key = GetCharPressed();
 
