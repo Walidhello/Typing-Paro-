@@ -31,6 +31,7 @@ typedef struct
 } Enemy;
 
 extern Enemy enemies[MAX_ENEMIES];
+extern int targetEnemy;
 
 //------------------------------------
 // Enemy Functions

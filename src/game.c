@@ -214,4 +214,5 @@ void DrawGame(void)
 void UnloadGame(void)
 {
     UnloadPlayer(); 
+    UnloadGunship();
 }

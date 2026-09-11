@@ -1,26 +1,65 @@
+#include "raylib.h"
 #include "gunship.h"
 #include "game.h"
+#include "enemy.h"
+#include <math.h>
 
 Gunship gunship;
 
 void InitGunship(void)
 {
     gunship.width = 180;
-    gunship.height = 90;
+    gunship.height = 120;
 
     gunship.position.x = SCREEN_WIDTH / 2.0f;
-    gunship.position.y = SCREEN_HEIGHT - 90;
+    gunship.position.y = SCREEN_HEIGHT - 70.0f;
+
+    gunship.rotation = 0.0f;
+    gunship.targetRotation = 0.0f;
+
+    gunship.texture = LoadRenderTexture(
+        (int)gunship.width,
+        (int)gunship.height);
+}
+void UnloadGunship(void){
+    UnloadRenderTexture(gunship.texture);
 }
 void UpdateGunship(void)
 {
-    // Gunship currently stays stationary.
+    if (targetEnemy == -1)
+    {
+        gunship.targetRotation = 0.0f;
+    }
+    else
+    {
+        Enemy *target = &enemies[targetEnemy];
+
+        float dx = target->x - gunship.position.x;
+        float dy = target->y - gunship.position.y;
+
+        gunship.targetRotation =
+            atan2f(dx, -dy) * (180.0f / PI);
+    }
+
+    float difference =
+        gunship.targetRotation - gunship.rotation;
+
+    if (difference > 180.0f)
+        difference -= 360.0f;
+
+    if (difference < -180.0f)
+        difference += 360.0f;
+
+    float rotationSpeed = 8.0f;
+
+    gunship.rotation +=
+        difference * rotationSpeed * GetFrameTime();
 }
-
-void DrawGunship(void)
+void DrawGunshipDesign(void)
 {
-    float x = gunship.position.x;
-    float y = gunship.position.y;
-
+    float x = gunship.width / 2.0f;
+    float y = gunship.height / 2.0f;
+   
     // =====================================================
     // ENGINE FLAMES
     // =====================================================
@@ -248,5 +287,43 @@ void DrawGunship(void)
         x,
         y + 27,
         LIGHTGRAY
+    );
+}
+void DrawGunship(void)
+{
+    BeginTextureMode(gunship.texture);
+
+    ClearBackground(BLANK);
+
+    DrawGunshipDesign();
+
+    EndTextureMode();
+
+    Rectangle source = {
+        0,
+        0,
+        gunship.width,
+        -gunship.height
+    };
+
+    Rectangle destination = {
+        gunship.position.x,
+        gunship.position.y,
+        gunship.width,
+        gunship.height
+    };
+
+    Vector2 origin = {
+        gunship.width / 2.0f,
+        gunship.height / 2.0f
+    };
+
+    DrawTexturePro(
+        gunship.texture.texture,
+        source,
+        destination,
+        origin,
+        gunship.rotation,
+        WHITE
     );
 }
