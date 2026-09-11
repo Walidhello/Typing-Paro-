@@ -26,8 +26,6 @@ int main(void)
 
         DrawGame();
 
-        DrawFPS(10,10);
-
         EndDrawing();
     }
 
