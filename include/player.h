@@ -3,9 +3,6 @@
 
 #include "raylib.h"
 
-//----------------------------------
-// Player Structure
-//----------------------------------
 typedef struct
 {
     Vector2 position;
@@ -16,9 +13,6 @@ typedef struct
 
 extern Player player;
 
-//----------------------------------
-// Player Functions
-//----------------------------------
 void InitPlayer(void);
 void UpdatePlayer(void);
 void DrawPlayer(void);

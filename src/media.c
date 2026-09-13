@@ -24,12 +24,8 @@ static bool isMusicMuted = false;
 static CosmicStar stars[MAX_STARS];
 static bool starsInitialized = false;
 
-//--------------------------------------------------
-// Initialize Media & Starfield
-//--------------------------------------------------
 void InitMedia(void)
 {
-    // 1. Check for Custom Background Images in assets/
     const char* bgCandidates[] = {
         "assets/background.png",
         "assets/background.jpg",
@@ -53,7 +49,6 @@ void InitMedia(void)
         }
     }
 
-    // 2. Check for Custom Background Music in assets/
     const char* musicCandidates[] = {
         "assets/music.mp3",
         "assets/music.ogg",
@@ -66,7 +61,6 @@ void InitMedia(void)
     hasCustomMusic = false;
     isMusicMuted = false;
 
-    // Raylib audio initialization
     InitAudioDevice();
 
     if (IsAudioDeviceReady())
@@ -89,7 +83,6 @@ void InitMedia(void)
         }
     }
 
-    // 3. Initialize Procedural Cosmic Starfield
     for (int i = 0; i < MAX_STARS; i++)
     {
         stars[i].x = (float)GetRandomValue(0, 800);
@@ -99,21 +92,18 @@ void InitMedia(void)
         int layer = GetRandomValue(0, 2);
         if (layer == 0)
         {
-            // Far layer
             stars[i].speed = (float)GetRandomValue(12, 25);
             stars[i].size = 1.0f;
             stars[i].color = (Color){ 120, 140, 190, 140 };
         }
         else if (layer == 1)
         {
-            // Mid layer
             stars[i].speed = (float)GetRandomValue(30, 60);
             stars[i].size = 1.5f;
             stars[i].color = (Color){ 170, 210, 255, 200 };
         }
         else
         {
-            // Close fast layer
             stars[i].speed = (float)GetRandomValue(80, 140);
             stars[i].size = 2.2f;
             stars[i].color = (Color){ 230, 245, 255, 255 };
@@ -122,26 +112,20 @@ void InitMedia(void)
     starsInitialized = true;
 }
 
-//--------------------------------------------------
-// Update Media & Starfield
-//--------------------------------------------------
 void UpdateMedia(void)
 {
     float dt = GetFrameTime();
 
-    // Toggle mute on M
     if (IsKeyPressed(KEY_M))
     {
         ToggleMusicMute();
     }
 
-    // Update music stream
     if (hasCustomMusic && !isMusicMuted && IsAudioDeviceReady())
     {
         UpdateMusicStream(bgmMusic);
     }
 
-    // Update star positions
     if (starsInitialized)
     {
         for (int i = 0; i < MAX_STARS; i++)
@@ -156,42 +140,30 @@ void UpdateMedia(void)
     }
 }
 
-//--------------------------------------------------
-// Draw Custom Background (or fallback to Starfield)
-//--------------------------------------------------
 void DrawCustomBackground(int screenWidth, int screenHeight)
 {
     if (hasCustomBg && customBgTexture.id > 0)
     {
-        // Stretch custom background to fill screen with a sleek cyber tint
         Rectangle source = { 0, 0, (float)customBgTexture.width, (float)customBgTexture.height };
         Rectangle dest = { 0, 0, (float)screenWidth, (float)screenHeight };
         DrawTexturePro(customBgTexture, source, dest, (Vector2){ 0, 0 }, 0.0f, WHITE);
 
-        // Add subtle dark cyber overlay to preserve contrast for laser bolts and text
         DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.40f));
     }
     else
     {
-        // Procedural deep space background
         DrawCosmicStarfield(screenWidth, screenHeight, 1.0f);
     }
 }
 
-//--------------------------------------------------
-// Draw Procedural Cosmic Starfield & Nebula
-//--------------------------------------------------
 void DrawCosmicStarfield(int screenWidth, int screenHeight, float speedMultiplier)
 {
-    // Deep interstellar dark blue background
     ClearBackground((Color){ 6, 6, 14, 255 });
 
-    // Subtle cosmic nebula glow gradients
     DrawCircleGradient((Vector2){ (float)(screenWidth / 2), 260.0f }, 320.0f, (Color){ 16, 25, 55, 110 }, (Color){ 6, 6, 14, 0 });
     DrawCircleGradient((Vector2){ (float)(screenWidth / 2 + 150), 600.0f }, 280.0f, (Color){ 30, 14, 45, 90 }, (Color){ 6, 6, 14, 0 });
     DrawCircleGradient((Vector2){ (float)(screenWidth / 2 - 180), 480.0f }, 240.0f, (Color){ 10, 35, 45, 80 }, (Color){ 6, 6, 14, 0 });
 
-    // Draw twinkling stars
     float time = (float)GetTime();
     for (int i = 0; i < MAX_STARS; i++)
     {
@@ -201,7 +173,6 @@ void DrawCosmicStarfield(int screenWidth, int screenHeight, float speedMultiplie
 
         if (stars[i].size > 2.0f)
         {
-            // Close star slight motion streak
             float tail = stars[i].speed * 0.04f * speedMultiplier;
             DrawLineEx(
                 (Vector2){ stars[i].x, stars[i].y - tail },
@@ -217,9 +188,6 @@ void DrawCosmicStarfield(int screenWidth, int screenHeight, float speedMultiplie
     }
 }
 
-//--------------------------------------------------
-// Toggles & Query Functions
-//--------------------------------------------------
 bool HasCustomBackground(void)
 {
     return hasCustomBg;
@@ -251,9 +219,6 @@ bool IsMusicMuted(void)
     return isMusicMuted;
 }
 
-//--------------------------------------------------
-// Unload Media
-//--------------------------------------------------
 void UnloadMedia(void)
 {
     if (hasCustomBg && customBgTexture.id > 0)

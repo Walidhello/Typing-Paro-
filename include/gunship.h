@@ -8,8 +8,8 @@ typedef struct
     Vector2 position;
     float width;
     float height;
-    float rotation;        // Current rotation in degrees
-    float targetRotation;  // Desired target rotation in degrees
+    float rotation;
+    float targetRotation;
     float recoilY;
     float cannonGlowLeft;
     float cannonGlowRight;

@@ -4,14 +4,6 @@
 #include "raylib.h"
 #include <stdbool.h>
 
-// ============================================================================
-// MEDIA & ASSET HOOKS
-// - Background: Drop a file named "background.png" (or "background.jpg", "bg.png")
-//   into the "assets/" folder. The game will automatically detect and render it!
-// - Music: Drop a file named "music.mp3" (or "music.ogg", "bgm.mp3", "music.wav")
-//   into the "assets/" folder. The game will automatically loop and stream it!
-// ============================================================================
-
 void InitMedia(void);
 void UpdateMedia(void);
 void DrawCustomBackground(int screenWidth, int screenHeight);

@@ -17,11 +17,8 @@ static FloatText floatTexts[MAX_FLOAT_TEXTS];
 
 static float screenShake = 0.0f;
 static Vector2 shakeOffset = { 0.0f, 0.0f };
-static int lastCannon = 0; // 0 = left, 1 = right
+static int lastCannon = 0;
 
-//--------------------------------------------------
-// Color interpolation helper
-//--------------------------------------------------
 static Color LerpColor(Color c1, Color c2, float t)
 {
     if (t < 0.0f) t = 0.0f;
@@ -34,9 +31,6 @@ static Color LerpColor(Color c1, Color c2, float t)
     };
 }
 
-//--------------------------------------------------
-// Initialize Shooting & Effects System
-//--------------------------------------------------
 void InitShooting(void)
 {
     screenShake = 0.0f;
@@ -65,9 +59,6 @@ void InitShooting(void)
     }
 }
 
-//--------------------------------------------------
-// Add Muzzle Flash
-//--------------------------------------------------
 void AddMuzzleFlash(Vector2 pos, Color color)
 {
     for (int i = 0; i < MAX_MUZZLE_FLASHES; i++)
@@ -85,9 +76,6 @@ void AddMuzzleFlash(Vector2 pos, Color color)
     }
 }
 
-//--------------------------------------------------
-// Add Particle
-//--------------------------------------------------
 static void SpawnParticle(Vector2 pos, Vector2 vel, float size, float lifetime,
                           Color startCol, Color endCol, float drag, bool isSmoke)
 {
@@ -110,9 +98,6 @@ static void SpawnParticle(Vector2 pos, Vector2 vel, float size, float lifetime,
     }
 }
 
-//--------------------------------------------------
-// Engine Exhaust Particle
-//--------------------------------------------------
 void AddExhaustParticle(Vector2 pos, Vector2 vel, Color color)
 {
     SpawnParticle(
@@ -127,9 +112,6 @@ void AddExhaustParticle(Vector2 pos, Vector2 vel, Color color)
     );
 }
 
-//--------------------------------------------------
-// Hit Sparks
-//--------------------------------------------------
 void CreateHitSparks(Vector2 pos, Color color, int count)
 {
     for (int i = 0; i < count; i++)
@@ -152,7 +134,6 @@ void CreateHitSparks(Vector2 pos, Color color, int count)
         );
     }
 
-    // Small impact ring
     for (int i = 0; i < MAX_SHOCKWAVES; i++)
     {
         if (!shockwaves[i].active)
@@ -169,9 +150,6 @@ void CreateHitSparks(Vector2 pos, Color color, int count)
     }
 }
 
-//--------------------------------------------------
-// Floating Combat Text
-//--------------------------------------------------
 void AddFloatText(Vector2 pos, const char* text, Color color, int fontSize)
 {
     for (int i = 0; i < MAX_FLOAT_TEXTS; i++)
@@ -191,16 +169,13 @@ void AddFloatText(Vector2 pos, const char* text, Color color, int fontSize)
     }
 }
 
-//--------------------------------------------------
-// Create Destruction Explosion
-//--------------------------------------------------
 void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
 {
     int particleCount = 40;
     float baseSpeed = 240.0f;
     float shockwaveMax = 70.0f;
-    Color primaryColor = (Color){ 255, 120, 30, 255 };  // Red-orange fire
-    Color secondaryColor = (Color){ 255, 220, 50, 255 }; // Bright gold
+    Color primaryColor = (Color){ 255, 120, 30, 255 };
+    Color secondaryColor = (Color){ 255, 220, 50, 255 };
 
     if (type == E_MEDIUM_BOSS)
     {
@@ -216,8 +191,8 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
         particleCount = 90;
         baseSpeed = 400.0f;
         shockwaveMax = 125.0f;
-        primaryColor = (Color){ 220, 60, 255, 255 }; // Neon magenta/purple
-        secondaryColor = (Color){ 80, 220, 255, 255 }; // Electric cyan
+        primaryColor = (Color){ 220, 60, 255, 255 };
+        secondaryColor = (Color){ 80, 220, 255, 255 };
         screenShake = fmaxf(screenShake, 11.0f);
     }
     else
@@ -225,7 +200,6 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
         screenShake = fmaxf(screenShake, 4.5f);
     }
 
-    // 1. Core fireball and expanding smoke puffs
     for (int i = 0; i < particleCount / 3; i++)
     {
         float angle = ((float)GetRandomValue(0, 360)) * (PI_FLOAT / 180.0f);
@@ -246,7 +220,6 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
         );
     }
 
-    // 2. High-speed bright sparks & shrapnel
     for (int i = 0; i < particleCount; i++)
     {
         float angle = ((float)GetRandomValue(0, 360)) * (PI_FLOAT / 180.0f);
@@ -268,7 +241,6 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
         );
     }
 
-    // 3. Shockwave rings
     for (int i = 0; i < MAX_SHOCKWAVES; i++)
     {
         if (!shockwaves[i].active)
@@ -284,7 +256,6 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
         }
     }
 
-    // Additional outer ring for bosses
     if (type != E_NORMAL)
     {
         for (int i = 0; i < MAX_SHOCKWAVES; i++)
@@ -303,7 +274,6 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
         }
     }
 
-    // 4. Floating combat text: destroyed word or bonus
     if (word != NULL && strlen(word) > 0)
     {
         char buffer[40];
@@ -317,9 +287,6 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
     }
 }
 
-//--------------------------------------------------
-// Internal: Spawn single projectile
-//--------------------------------------------------
 static void SpawnProjectile(Vector2 origin, Vector2 target,
                             bool isKill, EnemyType enemyType, const char* word,
                             Color coreCol, Color glowCol, float speed, float length, float width)
@@ -354,7 +321,6 @@ static void SpawnProjectile(Vector2 origin, Vector2 target,
                 projectiles[i].velocity = (Vector2){ 0.0f, -speed };
             }
 
-            // Initialize trail
             for (int t = 0; t < 6; t++)
             {
                 projectiles[i].trail[t] = origin;
@@ -365,14 +331,11 @@ static void SpawnProjectile(Vector2 origin, Vector2 target,
     }
 }
 
-//--------------------------------------------------
-// Fire Laser at Position
-//--------------------------------------------------
 void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* word, bool isKillShot)
 {
     if (!isKillShot)
     {
-        // Alternating single cannon fire from rotated muzzle tips
+        // Alternate between left and right cannons
         Vector2 muzzlePos;
         if (lastCannon == 0)
         {
@@ -387,22 +350,19 @@ void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* wor
             lastCannon = 0;
         }
 
-        // Muzzle flash at rotated muzzle position
         AddMuzzleFlash(muzzlePos, (Color){ 0, 240, 255, 255 });
 
-        // Gunship dynamics
         gunship.recoilY = 3.2f;
         gunship.flameBoost = 12.0f;
 
-        // Plasma bolt
         SpawnProjectile(
             muzzlePos,
             targetPos,
             false,
             enemyType,
             word,
-            (Color){ 240, 255, 255, 255 }, // Hot white core
-            (Color){ 0, 220, 255, 200 },   // Vibrant cyan glow
+            (Color){ 240, 255, 255, 255 },
+            (Color){ 0, 220, 255, 200 },
             3000.0f,
             26.0f,
             4.0f
@@ -410,7 +370,6 @@ void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* wor
     }
     else
     {
-        // Dual Cannon Super Blast on Kill Shot from rotated muzzle tips!
         Vector2 leftMuzzle = GetGunshipLeftMuzzle();
         Vector2 rightMuzzle = GetGunshipRightMuzzle();
 
@@ -420,15 +379,15 @@ void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* wor
         Color glowCol;
         if (enemyType == E_HARD_BOSS)
         {
-            glowCol = (Color){ 255, 80, 240, 240 }; // Heavy magenta
+            glowCol = (Color){ 255, 80, 240, 240 };
         }
         else if (enemyType == E_MEDIUM_BOSS)
         {
-            glowCol = (Color){ 255, 190, 40, 240 }; // Heavy amber
+            glowCol = (Color){ 255, 190, 40, 240 };
         }
         else
         {
-            glowCol = (Color){ 40, 255, 200, 240 }; // Heavy emerald cyan
+            glowCol = (Color){ 40, 255, 200, 240 };
         }
 
         AddMuzzleFlash(leftMuzzle, glowCol);
@@ -437,7 +396,6 @@ void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* wor
         gunship.recoilY = 6.0f;
         gunship.flameBoost = 22.0f;
 
-        // Left bolt
         SpawnProjectile(
             leftMuzzle,
             targetPos,
@@ -451,11 +409,10 @@ void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* wor
             6.0f
         );
 
-        // Right bolt
         SpawnProjectile(
             rightMuzzle,
             targetPos,
-            false, // secondary visual bolt (doesn't trigger duplicate explosion)
+            false,
             enemyType,
             word,
             WHITE,
@@ -467,15 +424,11 @@ void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* wor
     }
 }
 
-//--------------------------------------------------
-// Trigger Misfire (wrong key pressed)
-//--------------------------------------------------
 void TriggerMisfire(void)
 {
     gunship.misfireTimer = 0.15f;
     float shipY = gunship.position.y + gunship.recoilY;
 
-    // Small red spark puffs at wing weapon pods
     SpawnParticle(
         (Vector2){ gunship.position.x - 57.0f, shipY + 10.0f },
         (Vector2){ (float)GetRandomValue(-40, -10), (float)GetRandomValue(-20, 20) },
@@ -498,21 +451,16 @@ void TriggerMisfire(void)
     );
 }
 
-//--------------------------------------------------
-// Update Shooting System
-//--------------------------------------------------
 void UpdateShooting(void)
 {
     float dt = GetFrameTime();
 
-    // 1. Update Projectiles
     for (int i = 0; i < MAX_PROJECTILES; i++)
     {
         if (projectiles[i].active)
         {
             LaserProjectile* p = &projectiles[i];
 
-            // Update trail history
             if (p->trailCount < 6) p->trailCount++;
             for (int t = p->trailCount - 1; t > 0; t--)
             {
@@ -520,7 +468,6 @@ void UpdateShooting(void)
             }
             p->trail[0] = p->position;
 
-            // Distance to target
             float dx = p->target.x - p->position.x;
             float dy = p->target.y - p->position.y;
             float dist = sqrtf(dx * dx + dy * dy);
@@ -529,7 +476,6 @@ void UpdateShooting(void)
 
             if (dist <= step || dist < 25.0f)
             {
-                // Impact!
                 p->active = false;
                 Vector2 impactPoint = p->target;
 
@@ -544,14 +490,12 @@ void UpdateShooting(void)
             }
             else
             {
-                // Move towards target
                 p->velocity.x = (dx / dist) * p->speed;
                 p->velocity.y = (dy / dist) * p->speed;
 
                 p->position.x += p->velocity.x * dt;
                 p->position.y += p->velocity.y * dt;
 
-                // Despawn bounds (ensures projectiles can reach enemies near the top of the screen)
                 if (p->position.y < -120.0f || p->position.y > SCREEN_HEIGHT + 60.0f ||
                     p->position.x < -100.0f || p->position.x > SCREEN_WIDTH + 100.0f)
                 {
@@ -561,7 +505,6 @@ void UpdateShooting(void)
         }
     }
 
-    // 2. Update Muzzle Flashes
     for (int i = 0; i < MAX_MUZZLE_FLASHES; i++)
     {
         if (muzzleFlashes[i].active)
@@ -574,7 +517,6 @@ void UpdateShooting(void)
         }
     }
 
-    // 3. Update VFX Particles
     for (int i = 0; i < MAX_PARTICLES; i++)
     {
         if (particles[i].active)
@@ -588,7 +530,6 @@ void UpdateShooting(void)
             }
             else
             {
-                // Drag friction
                 pt->velocity.x *= (1.0f - pt->drag * dt);
                 pt->velocity.y *= (1.0f - pt->drag * dt);
 
@@ -603,7 +544,6 @@ void UpdateShooting(void)
         }
     }
 
-    // 4. Update Shockwaves
     for (int i = 0; i < MAX_SHOCKWAVES; i++)
     {
         if (shockwaves[i].active)
@@ -616,7 +556,6 @@ void UpdateShooting(void)
         }
     }
 
-    // 5. Update Floating Texts
     for (int i = 0; i < MAX_FLOAT_TEXTS; i++)
     {
         if (floatTexts[i].active)
@@ -631,7 +570,6 @@ void UpdateShooting(void)
         }
     }
 
-    // 6. Update Screen Shake
     if (screenShake > 0.0f)
     {
         screenShake -= 24.0f * dt;
@@ -646,17 +584,11 @@ void UpdateShooting(void)
     }
 }
 
-//--------------------------------------------------
-// Get Screen Shake Offset
-//--------------------------------------------------
 Vector2 GetScreenShakeOffset(void)
 {
     return shakeOffset;
 }
 
-//--------------------------------------------------
-// Draw Laser Projectiles & Trails
-//--------------------------------------------------
 void DrawShootingProjectiles(void)
 {
     for (int i = 0; i < MAX_PROJECTILES; i++)
@@ -674,7 +606,6 @@ void DrawShootingProjectiles(void)
             Vector2 tip = p->position;
             Vector2 tail = { tip.x - dir.x * p->length, tip.y - dir.y * p->length };
 
-            // 1. Sleek Motion Trail
             for (int t = 0; t < p->trailCount - 1; t++)
             {
                 float trailProgress = 1.0f - ((float)t / (float)p->trailCount);
@@ -682,29 +613,21 @@ void DrawShootingProjectiles(void)
                 DrawLineEx(p->trail[t], p->trail[t + 1], p->width * 0.8f * trailProgress, trailCol);
             }
 
-            // 2. Outer Luminous Halo
             DrawLineEx(tail, tip, p->width * 2.6f, Fade(p->glowColor, 0.35f));
 
-            // 3. Mid Plasma Beam
             DrawLineEx(tail, tip, p->width * 1.5f, Fade(p->glowColor, 0.85f));
 
-            // 4. Intense White Core
             Vector2 coreTail = { tip.x - dir.x * (p->length * 0.7f), tip.y - dir.y * (p->length * 0.7f) };
             DrawLineEx(coreTail, tip, p->width * 0.6f, p->coreColor);
 
-            // 5. Glowing Head Cap
             DrawCircleV(tip, p->width * 1.3f, Fade(p->glowColor, 0.9f));
             DrawCircleV(tip, p->width * 0.6f, WHITE);
         }
     }
 }
 
-//--------------------------------------------------
-// Draw Shooting Effects (Flashes, Particles, Shockwaves, Text)
-//--------------------------------------------------
 void DrawShootingEffects(void)
 {
-    // 1. Shockwaves
     for (int i = 0; i < MAX_SHOCKWAVES; i++)
     {
         if (shockwaves[i].active)
@@ -721,7 +644,6 @@ void DrawShootingEffects(void)
         }
     }
 
-    // 2. Particles (Smoke, Fire, Sparks)
     for (int i = 0; i < MAX_PARTICLES; i++)
     {
         if (particles[i].active)
@@ -751,7 +673,6 @@ void DrawShootingEffects(void)
         }
     }
 
-    // 3. Muzzle Flashes
     for (int i = 0; i < MAX_MUZZLE_FLASHES; i++)
     {
         if (muzzleFlashes[i].active)
@@ -781,7 +702,6 @@ void DrawShootingEffects(void)
         }
     }
 
-    // 4. Floating Combat Texts
     for (int i = 0; i < MAX_FLOAT_TEXTS; i++)
     {
         if (floatTexts[i].active)
@@ -798,20 +718,16 @@ void DrawShootingEffects(void)
     }
 }
 
-//--------------------------------------------------
-// Trigger Sonic Wave Visual & Physics Blast
-//--------------------------------------------------
 void TriggerSonicWaveVFX(Vector2 origin)
 {
     screenShake = 22.0f;
 
-    // 1. Spawns 5 concentric expanding shockwaves of varying radii, speeds, and colors
     Color colors[5] = {
-        (Color){ 0, 240, 255, 255 },   // Cyan
-        WHITE,                          // Pure white core
-        (Color){ 100, 210, 255, 255 }, // Electric SkyBlue
-        (Color){ 220, 80, 255, 255 },  // EMP Violet
-        (Color){ 50, 255, 200, 255 }   // Bright Turquoise
+        (Color){ 0, 240, 255, 255 },
+        WHITE,
+        (Color){ 100, 210, 255, 255 },
+        (Color){ 220, 80, 255, 255 },
+        (Color){ 50, 255, 200, 255 }
     };
 
     for (int k = 0; k < 5; k++)
@@ -832,7 +748,6 @@ void TriggerSonicWaveVFX(Vector2 origin)
         }
     }
 
-    // 2. High-energy electric particle blast (120 particles)
     for (int i = 0; i < 120; i++)
     {
         float angle = ((float)GetRandomValue(0, 360)) * (PI_FLOAT / 180.0f);
@@ -854,7 +769,6 @@ void TriggerSonicWaveVFX(Vector2 origin)
         );
     }
 
-    // 3. Floating combat text
     AddFloatText(
         (Vector2){ origin.x, origin.y - 80.0f },
         "⚡ SONIC WAVE DETONATED! ⚡",
@@ -862,7 +776,6 @@ void TriggerSonicWaveVFX(Vector2 origin)
         24
     );
 
-    // 4. Boost gunship thrusters and cannon flares
     gunship.flameBoost = 40.0f;
     gunship.cannonGlowLeft = 0.9f;
     gunship.cannonGlowRight = 0.9f;

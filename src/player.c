@@ -16,7 +16,6 @@ void InitPlayer(void)
 
 void UpdatePlayer(void)
 {
-    // Player does not move.
 }
 
 void DrawPlayer(void)

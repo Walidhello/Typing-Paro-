@@ -11,7 +11,6 @@
 #define MAX_SHOCKWAVES 40
 #define MAX_FLOAT_TEXTS 20
 
-// Laser Projectile
 typedef struct {
     bool active;
     Vector2 position;
@@ -29,7 +28,6 @@ typedef struct {
     int trailCount;
 } LaserProjectile;
 
-// Muzzle Flash
 typedef struct {
     bool active;
     Vector2 position;
@@ -39,7 +37,6 @@ typedef struct {
     Color color;
 } MuzzleFlash;
 
-// Particle Effect (Sparks, Smoke, Fire, Exhaust)
 typedef struct {
     bool active;
     Vector2 position;
@@ -53,7 +50,6 @@ typedef struct {
     bool isSmoke;
 } VFXParticle;
 
-// Expanding Shockwave Ring
 typedef struct {
     bool active;
     Vector2 position;
@@ -64,7 +60,6 @@ typedef struct {
     Color color;
 } Shockwave;
 
-// Floating Combat Text
 typedef struct {
     bool active;
     Vector2 position;
@@ -75,7 +70,6 @@ typedef struct {
     int fontSize;
 } FloatText;
 
-// Function Declarations
 void InitShooting(void);
 void UpdateShooting(void);
 void DrawShootingProjectiles(void);
