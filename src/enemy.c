@@ -1,13 +1,11 @@
 #include "enemy.h"
 #include "game.h"
 #include "word.h"
-#include "player.h"
 #include "gunship.h"
 #include "shooting.h"
 #include "raylib.h"
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <math.h>
 
@@ -19,33 +17,21 @@ void InitEnemies(void)
 {
     targetEnemy = -1;
     comboStreak = 0;
-    for(int i = 0; i < MAX_ENEMIES; i++)
-    {
-        enemies[i].active = false;
-        enemies[i].vx = 0.0f;
-        enemies[i].vy = 0.0f;
-        enemies[i].headingToPlayer = false;
-        enemies[i].pivotY = MEDIUM_ENEMY_PIVOT_Y;
-        enemies[i].hitFlashTimer = 0.0f;
-        enemies[i].minionSpawnTimer = 0.0f;
-    }
+    memset(enemies, 0, sizeof(enemies));
 }
 
 void SpawnMinions(float x, float y)
 {
     int activeCount = 0;
     for (int i = 0; i < MAX_ENEMIES; i++)
-    {
         if (enemies[i].active) activeCount++;
-    }
-
     if (activeCount >= 10) return;
 
     LoadWords("assets/words/easy.txt");
 
-    for(int i = 0; i < MAX_ENEMIES; i++)
+    for (int i = 0; i < MAX_ENEMIES; i++)
     {
-        if(!enemies[i].active)
+        if (!enemies[i].active)
         {
             enemies[i].active = true;
             enemies[i].type = E_NORMAL;
@@ -68,6 +54,7 @@ void SpawnMinions(float x, float y)
             enemies[i].typedLetters = 0;
             enemies[i].hitFlashTimer = 0.0f;
             enemies[i].minionSpawnTimer = 0.0f;
+            enemies[i].errorTimer = 0.0f;
 
             CreateHitSparks((Vector2){ bayX, y }, (Color){ 0, 240, 255, 255 }, 8);
             break;
@@ -77,9 +64,9 @@ void SpawnMinions(float x, float y)
 
 void SpawnEnemy(void)
 {
-    for(int i = 0; i < MAX_ENEMIES; i++)
+    for (int i = 0; i < MAX_ENEMIES; i++)
     {
-        if(enemies[i].active == false)
+        if (!enemies[i].active)
         {
             enemies[i].active = true;
             enemies[i].x = (float)GetRandomValue(90, SCREEN_WIDTH - 90);
@@ -89,28 +76,30 @@ void SpawnEnemy(void)
             enemies[i].speed = (300.0f * (float)targetWPM) / 3600.0f;
 
             enemies[i].type = E_NORMAL;
-            int pool = 1;
-            if (currentLevel >= 5) pool = 3;
-            else if (currentLevel >= 3) pool = 2;
-
+            int pool = (currentLevel >= 5) ? 3 : ((currentLevel >= 3) ? 2 : 1);
             int choice = GetRandomValue(1, pool);
-            if (choice == 3) {
+
+            if (choice == 3)
+            {
                 enemies[i].type = E_HARD_BOSS;
                 LoadWords("assets/words/hard.txt");
                 enemies[i].speed *= 0.75f;
-            } else if (choice == 2) {
+            }
+            else if (choice == 2)
+            {
                 enemies[i].type = E_MEDIUM_BOSS;
                 LoadWords("assets/words/medium.txt");
-            } else {
+            }
+            else
+            {
                 LoadWords("assets/words/easy.txt");
             }
 
             enemies[i].vx = 0.0f;
             enemies[i].vy = enemies[i].speed;
-            enemies[i].headingToPlayer = false;
-            enemies[i].pivotY = MEDIUM_ENEMY_PIVOT_Y;
             enemies[i].hitFlashTimer = 0.0f;
             enemies[i].minionSpawnTimer = 0.0f;
+            enemies[i].errorTimer = 0.0f;
 
             strncpy(enemies[i].word, GetRandomWord(), WORD_LENGTH - 1);
             enemies[i].word[WORD_LENGTH - 1] = '\0';
@@ -125,44 +114,15 @@ void UpdateEnemies(void)
     float dt = GetFrameTime();
     float simDt = dt * 60.0f;
 
-    if (targetEnemy >= 0 && targetEnemy < MAX_ENEMIES)
-    {
-        if (!enemies[targetEnemy].active)
-        {
-            targetEnemy = -1;
-        }
-    }
-    else
-    {
+    if (targetEnemy >= 0 && (targetEnemy >= MAX_ENEMIES || !enemies[targetEnemy].active))
         targetEnemy = -1;
-    }
 
-    for(int i = 0; i < MAX_ENEMIES; i++)
+    for (int i = 0; i < MAX_ENEMIES; i++)
     {
-        if(enemies[i].active)
+        if (enemies[i].active)
         {
-            if (enemies[i].hitFlashTimer > 0.0f)
-            {
-                enemies[i].hitFlashTimer -= dt;
-                if (enemies[i].hitFlashTimer < 0.0f) enemies[i].hitFlashTimer = 0.0f;
-            }
-
-            if (enemies[i].type == E_MEDIUM_BOSS)
-            {
-                float dx = player.position.x - enemies[i].x;
-                float dy = player.position.y - enemies[i].y;
-                float length = sqrtf(dx * dx + dy * dy);
-
-                if (length > 0.0f)
-                {
-                    float desired_vx = (dx / length) * enemies[i].speed;
-                    float desired_vy = (dy / length) * enemies[i].speed;
-
-                    float smoothing = 0.04f;
-                    enemies[i].vx += (desired_vx - enemies[i].vx) * smoothing * simDt;
-                    enemies[i].vy += (desired_vy - enemies[i].vy) * smoothing * simDt;
-                }
-            }
+            enemies[i].hitFlashTimer = fmaxf(0.0f, enemies[i].hitFlashTimer - dt);
+            enemies[i].errorTimer = fmaxf(0.0f, enemies[i].errorTimer - dt);
 
             if (enemies[i].type == E_HARD_BOSS)
             {
@@ -177,13 +137,11 @@ void UpdateEnemies(void)
             enemies[i].x += enemies[i].vx * simDt;
             enemies[i].y += enemies[i].vy * simDt;
 
-            if(enemies[i].y > SCREEN_HEIGHT + 60 ||
-               enemies[i].y < -150 ||
-               enemies[i].x < -150 ||
-               enemies[i].x > SCREEN_WIDTH + 150)
+            if (enemies[i].y > SCREEN_HEIGHT + 60 || enemies[i].y < -150 ||
+                enemies[i].x < -150 || enemies[i].x > SCREEN_WIDTH + 150)
             {
                 enemies[i].active = false;
-                if(targetEnemy == i) targetEnemy = -1;
+                if (targetEnemy == i) targetEnemy = -1;
             }
         }
     }
@@ -199,21 +157,10 @@ void ProcessTyping(void)
     }
 
     if (IsKeyPressed(KEY_SPACE))
-    {
         TriggerSonicWave();
-    }
 
-    if (targetEnemy >= 0 && targetEnemy < MAX_ENEMIES)
-    {
-        if (!enemies[targetEnemy].active)
-        {
-            targetEnemy = -1;
-        }
-    }
-    else
-    {
+    if (targetEnemy >= 0 && (targetEnemy >= MAX_ENEMIES || !enemies[targetEnemy].active))
         targetEnemy = -1;
-    }
 
     int key = GetCharPressed();
     bool anyKeyProcessed = false;
@@ -230,24 +177,20 @@ void ProcessTyping(void)
 
         anyKeyProcessed = true;
         totalChars++;
-
         int inputChar = tolower(key);
 
         if (targetEnemy == -1)
         {
             int bestCandidate = -1;
             float closestDistSq = 999999999.0f;
-            float px = gunship.position.x;
-            float py = gunship.position.y;
+            float px = gunship.position.x, py = gunship.position.y;
 
             for (int i = 0; i < MAX_ENEMIES; i++)
             {
                 if (enemies[i].active && tolower((unsigned char)enemies[i].word[0]) == inputChar)
                 {
-                    float dx = enemies[i].x - px;
-                    float dy = enemies[i].y - py;
+                    float dx = enemies[i].x - px, dy = enemies[i].y - py;
                     float distSq = dx * dx + dy * dy;
-
                     if (distSq < closestDistSq)
                     {
                         closestDistSq = distSq;
@@ -255,40 +198,10 @@ void ProcessTyping(void)
                     }
                 }
             }
-
-            if (bestCandidate != -1)
-            {
-                int i = bestCandidate;
-                targetEnemy = i;
-                enemies[i].typedLetters = 1;
-                RecordCorrectChar();
-                anyKeyHit = true;
-
-                comboStreak++;
-                currentCombo = 1 + (comboStreak / 8);
-                if (currentCombo > 5) currentCombo = 5;
-                if (currentCombo > maxCombo) maxCombo = currentCombo;
-                currentScore += 15 * currentLevel * currentCombo;
-
-                enemies[i].hitFlashTimer = 0.12f;
-
-                if (enemies[i].typedLetters >= (int)strlen(enemies[i].word))
-                {
-                    currentScore += 120 * currentLevel * currentCombo;
-                    FireLaserAtPosition((Vector2){ enemies[i].x, enemies[i].y }, enemies[i].type, enemies[i].word, true);
-
-                    enemies[i].active = false;
-                    targetEnemy = -1;
-                    wordsClearedThisLevel++;
-                    CheckLevelProgression();
-                }
-                else
-                {
-                    FireLaserAtPosition((Vector2){ enemies[i].x, enemies[i].y }, enemies[i].type, enemies[i].word, false);
-                }
-            }
+            if (bestCandidate != -1) targetEnemy = bestCandidate;
         }
-        else
+
+        if (targetEnemy != -1)
         {
             Enemy* e = &enemies[targetEnemy];
             if (e->active && tolower((unsigned char)e->word[e->typedLetters]) == inputChar)
@@ -305,11 +218,11 @@ void ProcessTyping(void)
 
                 e->hitFlashTimer = 0.12f;
 
-                if (e->typedLetters >= (int)strlen(e->word))
+                bool isDestroyed = (e->typedLetters >= (int)strlen(e->word));
+                if (isDestroyed)
                 {
                     currentScore += 120 * currentLevel * currentCombo;
                     FireLaserAtPosition((Vector2){ e->x, e->y }, e->type, e->word, true);
-
                     e->active = false;
                     targetEnemy = -1;
                     wordsClearedThisLevel++;
@@ -329,6 +242,32 @@ void ProcessTyping(void)
         comboStreak = 0;
         currentCombo = 1;
         TriggerMisfire();
+
+        int errCandidate = (targetEnemy >= 0 && targetEnemy < MAX_ENEMIES && enemies[targetEnemy].active) ? targetEnemy : -1;
+        if (errCandidate == -1)
+        {
+            float closestDistSq = 999999999.0f;
+            float px = gunship.position.x, py = gunship.position.y;
+            for (int i = 0; i < MAX_ENEMIES; i++)
+            {
+                if (enemies[i].active)
+                {
+                    float dx = enemies[i].x - px, dy = enemies[i].y - py;
+                    float distSq = dx * dx + dy * dy;
+                    if (distSq < closestDistSq)
+                    {
+                        closestDistSq = distSq;
+                        errCandidate = i;
+                    }
+                }
+            }
+        }
+
+        if (errCandidate != -1)
+        {
+            enemies[errCandidate].errorTimer = 0.35f;
+            AddFloatText((Vector2){ enemies[errCandidate].x, enemies[errCandidate].y - 48.0f }, "MISS", (Color){ 255, 60, 60, 255 }, 16);
+        }
     }
 }
 
@@ -344,7 +283,6 @@ static void DrawNormalEnemyShip(float x, float y, bool isHit)
     }
 
     float flicker = sinf(GetTime() * 40.0f + x) * 3.0f;
-
     DrawTriangle((Vector2){x - 5, y - 16}, (Vector2){x + 5, y - 16}, (Vector2){x, y - 24 - flicker}, (Color){255, 100, 20, 255});
     DrawTriangle((Vector2){x - 3, y - 16}, (Vector2){x + 3, y - 16}, (Vector2){x, y - 20 - flicker * 0.7f}, (Color){255, 220, 50, 255});
     DrawRectangle((int)x - 6, (int)y - 17, 12, 3, (Color){45, 50, 60, 255});
@@ -360,7 +298,6 @@ static void DrawNormalEnemyShip(float x, float y, bool isHit)
 
     DrawTriangle((Vector2){x, y + 20}, (Vector2){x - 13, y - 14}, (Vector2){x + 13, y - 14}, (Color){38, 22, 28, 255});
     DrawTriangle((Vector2){x, y + 16}, (Vector2){x - 9, y - 10}, (Vector2){x + 9, y - 10}, (Color){185, 30, 45, 255});
-
     DrawLine((int)x, (int)(y - 12), (int)x, (int)(y + 14), (Color){255, 120, 140, 255});
 
     DrawTriangle((Vector2){x, y + 6}, (Vector2){x - 4, y - 3}, (Vector2){x + 4, y - 3}, (Color){255, 215, 0, 255});
@@ -379,7 +316,6 @@ static void DrawMediumBossShip(float x, float y, bool isHit)
     }
 
     float flicker = sinf(GetTime() * 45.0f + x) * 4.0f;
-
     DrawTriangle((Vector2){x - 24, y - 24}, (Vector2){x - 14, y - 24}, (Vector2){x - 19, y - 35 - flicker}, (Color){255, 120, 20, 255});
     DrawTriangle((Vector2){x - 22, y - 24}, (Vector2){x - 16, y - 24}, (Vector2){x - 19, y - 30 - flicker * 0.7f}, (Color){255, 220, 60, 255});
     DrawRectangle((int)x - 25, (int)y - 25, 12, 4, (Color){50, 55, 65, 255});
@@ -398,7 +334,6 @@ static void DrawMediumBossShip(float x, float y, bool isHit)
 
     DrawRectangle((int)x - 32, (int)y + 2, 6, 16, (Color){40, 45, 55, 255});
     DrawLine((int)(x - 29), (int)(y + 18), (int)(x - 29), (int)(y + 24), (Color){255, 200, 70, 255});
-
     DrawRectangle((int)x + 26, (int)y + 2, 6, 16, (Color){40, 45, 55, 255});
     DrawLine((int)(x + 29), (int)(y + 18), (int)(x + 29), (int)(y + 24), (Color){255, 200, 70, 255});
 
@@ -411,7 +346,6 @@ static void DrawMediumBossShip(float x, float y, bool isHit)
     DrawCircle((int)x, (int)y - 6, 7.0f, (Color){40, 50, 70, 255});
     DrawCircle((int)x, (int)y - 6, 4.5f, (Color){255, 160, 20, 255});
     DrawCircle((int)x, (int)y - 6, 2.0f, WHITE);
-
     DrawCircle((int)x - 37, (int)y + 11, 2.5f, (Color){255, 210, 50, 255});
     DrawCircle((int)x + 37, (int)y + 11, 2.5f, (Color){255, 210, 50, 255});
 }
@@ -429,41 +363,32 @@ static void DrawHardBossStation(float x, float y, bool isHit)
 
     float time = (float)GetTime();
 
-    DrawRectangle((int)x - 44, (int)y - 38, 26, 12, (Color){18, 45, 85, 255});
-    DrawRectangleLines((int)x - 44, (int)y - 38, 26, 12, (Color){0, 180, 255, 200});
-    DrawLine((int)x - 31, (int)y - 38, (int)x - 31, (int)y - 26, (Color){0, 220, 255, 180});
-
-    DrawRectangle((int)x + 18, (int)y - 38, 26, 12, (Color){18, 45, 85, 255});
-    DrawRectangleLines((int)x + 18, (int)y - 38, 26, 12, (Color){0, 180, 255, 200});
-    DrawLine((int)x + 31, (int)y - 38, (int)x + 31, (int)y - 26, (Color){0, 220, 255, 180});
-
-    DrawLineEx((Vector2){x - 20, y - 18}, (Vector2){x - 31, y - 26}, 2.5f, (Color){60, 65, 85, 255});
-    DrawLineEx((Vector2){x + 20, y - 18}, (Vector2){x + 31, y - 26}, 2.5f, (Color){60, 65, 85, 255});
+    for (int side = -1; side <= 1; side += 2)
+    {
+        int sx = (side == -1) ? ((int)x - 44) : ((int)x + 18);
+        DrawRectangle(sx, (int)y - 38, 26, 12, (Color){18, 45, 85, 255});
+        DrawRectangleLines(sx, (int)y - 38, 26, 12, (Color){0, 180, 255, 200});
+        DrawLine(sx + 13, (int)y - 38, sx + 13, (int)y - 26, (Color){0, 220, 255, 180});
+        DrawLineEx((Vector2){x + side * 20, y - 18}, (Vector2){sx + 13, y - 26}, 2.5f, (Color){60, 65, 85, 255});
+    }
 
     DrawRectangle((int)x - 48, (int)y - 8, 96, 16, (Color){38, 32, 50, 255});
     DrawRectangle((int)x - 8, (int)y - 34, 16, 68, (Color){38, 32, 50, 255});
-
     DrawLineEx((Vector2){x - 46, y}, (Vector2){x + 46, y}, 1.5f, (Color){0, 230, 255, 200});
     DrawLineEx((Vector2){x, y - 32}, (Vector2){x, y + 32}, 1.5f, (Color){0, 230, 255, 200});
 
-    DrawRectangle((int)x - 52, (int)y - 16, 18, 32, (Color){26, 20, 36, 255});
-    DrawRectangleLinesEx((Rectangle){x - 52, y - 16, 18, 32}, 1.5f, (Color){150, 45, 195, 255});
+    for (int side = -1; side <= 1; side += 2)
+    {
+        int podX = (side == -1) ? ((int)x - 52) : ((int)x + 34);
+        DrawRectangle(podX, (int)y - 16, 18, 32, (Color){26, 20, 36, 255});
+        DrawRectangleLinesEx((Rectangle){(float)podX, y - 16, 18, 32}, 1.5f, (Color){150, 45, 195, 255});
+        DrawRectangle(podX + 2, (int)y + 9, 14, 4, (Color){0, 240, 255, 255});
+        DrawLine(podX + 4, (int)y - 12, podX + 4, (int)y + 7, (Color){255, 215, 0, 220});
+        DrawLine(podX + 14, (int)y - 12, podX + 14, (int)y + 7, (Color){255, 215, 0, 220});
 
-    DrawRectangle((int)x - 50, (int)y + 9, 14, 4, (Color){0, 240, 255, 255});
-    DrawLine((int)x - 48, (int)y - 12, (int)x - 48, (int)y + 7, (Color){255, 215, 0, 220});
-    DrawLine((int)x - 38, (int)y - 12, (int)x - 38, (int)y + 7, (Color){255, 215, 0, 220});
-
-    DrawRectangle((int)x + 34, (int)y - 16, 18, 32, (Color){26, 20, 36, 255});
-    DrawRectangleLinesEx((Rectangle){x + 34, y - 16, 18, 32}, 1.5f, (Color){150, 45, 195, 255});
-
-    DrawRectangle((int)x + 36, (int)y + 9, 14, 4, (Color){0, 240, 255, 255});
-    DrawLine((int)x + 38, (int)y - 12, (int)x + 38, (int)y + 7, (Color){255, 215, 0, 220});
-    DrawLine((int)x + 48, (int)y - 12, (int)x + 48, (int)y + 7, (Color){255, 215, 0, 220});
-
-    DrawLineEx((Vector2){x - 18, y + 26}, (Vector2){x - 18, y + 42}, 2.0f, (Color){180, 190, 215, 255});
-    DrawLineEx((Vector2){x + 18, y + 26}, (Vector2){x + 18, y + 42}, 2.0f, (Color){180, 190, 215, 255});
-    DrawCircle((int)x - 18, (int)y + 42, 2.0f, RED);
-    DrawCircle((int)x + 18, (int)y + 42, 2.0f, RED);
+        DrawLineEx((Vector2){x + side * 18, y + 26}, (Vector2){x + side * 18, y + 42}, 2.0f, (Color){180, 190, 215, 255});
+        DrawCircle((int)(x + side * 18), (int)y + 42, 2.0f, RED);
+    }
 
     DrawPoly((Vector2){x, y}, 8, 25.0f, 22.5f, (Color){30, 24, 42, 255});
     DrawPoly((Vector2){x, y}, 8, 20.0f, 22.5f, (Color){90, 32, 115, 255});
@@ -474,21 +399,22 @@ static void DrawHardBossStation(float x, float y, bool isHit)
     DrawCircle((int)x, (int)y, 3.5f, WHITE);
 
     bool blink = ((int)(time * 3.5f) % 2 == 0);
-    DrawCircle((int)x - 52, (int)y, 3.0f, blink ? (Color){0, 240, 255, 255} : (Color){0, 70, 100, 255});
-    DrawCircle((int)x + 52, (int)y, 3.0f, blink ? (Color){0, 240, 255, 255} : (Color){0, 70, 100, 255});
+    Color blinkCol = blink ? (Color){0, 240, 255, 255} : (Color){0, 70, 100, 255};
+    DrawCircle((int)x - 52, (int)y, 3.0f, blinkCol);
+    DrawCircle((int)x + 52, (int)y, 3.0f, blinkCol);
 }
 
 void DrawEnemies(void)
 {
-    for(int i = 0; i < MAX_ENEMIES; i++)
+    for (int i = 0; i < MAX_ENEMIES; i++)
     {
-        if(enemies[i].active)
+        if (enemies[i].active)
         {
             float drawX = enemies[i].x;
             float drawY = enemies[i].y;
             bool isHit = (enemies[i].hitFlashTimer > 0.0f);
 
-            float badgeY = drawY - 42.0f;
+            float badgeY = drawY - 38.0f;
             float pad = 26.0f;
             float bLen = 8.0f;
 
@@ -509,48 +435,39 @@ void DrawEnemies(void)
             else
             {
                 DrawNormalEnemyShip(drawX, drawY, isHit);
-                badgeY = drawY - 38.0f;
-                pad = 26.0f;
-                bLen = 8.0f;
             }
+
+            float shakeX = (enemies[i].errorTimer > 0.0f) ?
+                (sinf(enemies[i].errorTimer * 55.0f) * 7.0f * (enemies[i].errorTimer / 0.35f)) : 0.0f;
+            float badgeDrawX = drawX + shakeX;
 
             if (i == targetEnemy)
             {
-                Color reticleColor = (Color){ 60, 255, 140, 240 };
-
-                DrawLine((int)(drawX - pad), (int)(drawY - pad), (int)(drawX - pad + bLen), (int)(drawY - pad), reticleColor);
-                DrawLine((int)(drawX - pad), (int)(drawY - pad), (int)(drawX - pad), (int)(drawY - pad + bLen), reticleColor);
-
-                DrawLine((int)(drawX + pad), (int)(drawY - pad), (int)(drawX + pad - bLen), (int)(drawY - pad), reticleColor);
-                DrawLine((int)(drawX + pad), (int)(drawY - pad), (int)(drawX + pad), (int)(drawY - pad + bLen), reticleColor);
-
-                DrawLine((int)(drawX - pad), (int)(drawY + pad), (int)(drawX - pad + bLen), (int)(drawY + pad), reticleColor);
-                DrawLine((int)(drawX - pad), (int)(drawY + pad), (int)(drawX - pad), (int)(drawY + pad - bLen), reticleColor);
-
-                DrawLine((int)(drawX + pad), (int)(drawY + pad), (int)(drawX + pad - bLen), (int)(drawY + pad), reticleColor);
-                DrawLine((int)(drawX + pad), (int)(drawY + pad), (int)(drawX + pad), (int)(drawY + pad - bLen), reticleColor);
+                Color reticleColor = (enemies[i].errorTimer > 0.0f) ? (Color){ 255, 60, 60, 240 } : (Color){ 60, 255, 140, 240 };
+                for (int sx = -1; sx <= 1; sx += 2)
+                {
+                    for (int sy = -1; sy <= 1; sy += 2)
+                    {
+                        float cx = drawX + sx * pad + shakeX;
+                        float cy = drawY + sy * pad;
+                        DrawLine((int)cx, (int)cy, (int)(cx - sx * bLen), (int)cy, reticleColor);
+                        DrawLine((int)cx, (int)cy, (int)cx, (int)(cy - sy * bLen), reticleColor);
+                    }
+                }
             }
 
             const char* remainingText = &enemies[i].word[enemies[i].typedLetters];
             int textW = MeasureText(remainingText, 20);
             int badgeW = (textW + 20 > 70) ? textW + 20 : 70;
 
-            DrawRectangle((int)drawX - badgeW / 2, (int)badgeY, badgeW, 22, (Color){ 16, 20, 32, 235 });
-            DrawRectangleLinesEx(
-                (Rectangle){ (int)drawX - badgeW / 2, (int)badgeY, (float)badgeW, 22.0f },
-                1.0f,
-                (i == targetEnemy) ? (Color){ 60, 255, 140, 220 } : (Color){ 50, 65, 85, 200 }
-            );
+            bool hasErr = (enemies[i].errorTimer > 0.0f);
+            Color badgeBg = hasErr ? (Color){ 70, 15, 25, 245 } : (Color){ 16, 20, 32, 235 };
+            Color badgeBorder = hasErr ? (Color){ 255, 50, 50, 255 } : ((i == targetEnemy) ? (Color){ 60, 255, 140, 220 } : (Color){ 50, 65, 85, 200 });
+            Color textColor = hasErr ? (Color){ 255, 50, 50, 255 } : ((i == targetEnemy) ? (Color){ 80, 255, 120, 255 } : WHITE);
 
-            Color textColor = (i == targetEnemy) ? (Color){ 80, 255, 120, 255 } : WHITE;
-
-            DrawText(
-                remainingText,
-                (int)drawX - textW / 2,
-                (int)badgeY + 1,
-                20,
-                textColor
-            );
+            DrawRectangle((int)badgeDrawX - badgeW / 2, (int)badgeY, badgeW, 22, badgeBg);
+            DrawRectangleLinesEx((Rectangle){ (int)badgeDrawX - badgeW / 2, (int)badgeY, (float)badgeW, 22.0f }, hasErr ? 2.0f : 1.0f, badgeBorder);
+            DrawText(remainingText, (int)badgeDrawX - textW / 2, (int)badgeY + 1, 20, textColor);
         }
     }
 }

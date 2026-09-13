@@ -2,6 +2,7 @@
 #include "gunship.h"
 #include "enemy.h"
 #include "game.h"
+#include "media.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,8 +22,7 @@ static int lastCannon = 0;
 
 static Color LerpColor(Color c1, Color c2, float t)
 {
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
+    t = fmaxf(0.0f, fminf(1.0f, t));
     return (Color){
         (unsigned char)(c1.r + (c2.r - c1.r) * t),
         (unsigned char)(c1.g + (c2.g - c1.g) * t),
@@ -36,27 +36,11 @@ void InitShooting(void)
     screenShake = 0.0f;
     shakeOffset = (Vector2){ 0.0f, 0.0f };
     lastCannon = 0;
-
-    for (int i = 0; i < MAX_PROJECTILES; i++)
-    {
-        projectiles[i].active = false;
-    }
-    for (int i = 0; i < MAX_PARTICLES; i++)
-    {
-        particles[i].active = false;
-    }
-    for (int i = 0; i < MAX_MUZZLE_FLASHES; i++)
-    {
-        muzzleFlashes[i].active = false;
-    }
-    for (int i = 0; i < MAX_SHOCKWAVES; i++)
-    {
-        shockwaves[i].active = false;
-    }
-    for (int i = 0; i < MAX_FLOAT_TEXTS; i++)
-    {
-        floatTexts[i].active = false;
-    }
+    memset(projectiles, 0, sizeof(projectiles));
+    memset(particles, 0, sizeof(particles));
+    memset(muzzleFlashes, 0, sizeof(muzzleFlashes));
+    memset(shockwaves, 0, sizeof(shockwaves));
+    memset(floatTexts, 0, sizeof(floatTexts));
 }
 
 void AddMuzzleFlash(Vector2 pos, Color color)
@@ -65,12 +49,7 @@ void AddMuzzleFlash(Vector2 pos, Color color)
     {
         if (!muzzleFlashes[i].active)
         {
-            muzzleFlashes[i].active = true;
-            muzzleFlashes[i].position = pos;
-            muzzleFlashes[i].timer = 0.09f;
-            muzzleFlashes[i].maxTimer = 0.09f;
-            muzzleFlashes[i].radius = 12.0f;
-            muzzleFlashes[i].color = color;
+            muzzleFlashes[i] = (MuzzleFlash){ true, pos, 0.09f, 0.09f, 12.0f, color };
             break;
         }
     }
@@ -83,16 +62,7 @@ static void SpawnParticle(Vector2 pos, Vector2 vel, float size, float lifetime,
     {
         if (!particles[i].active)
         {
-            particles[i].active = true;
-            particles[i].position = pos;
-            particles[i].velocity = vel;
-            particles[i].size = size;
-            particles[i].timer = lifetime;
-            particles[i].maxTimer = lifetime;
-            particles[i].startColor = startCol;
-            particles[i].endColor = endCol;
-            particles[i].drag = drag;
-            particles[i].isSmoke = isSmoke;
+            particles[i] = (VFXParticle){ true, pos, vel, size, lifetime, lifetime, startCol, endCol, drag, isSmoke };
             break;
         }
     }
@@ -100,16 +70,21 @@ static void SpawnParticle(Vector2 pos, Vector2 vel, float size, float lifetime,
 
 void AddExhaustParticle(Vector2 pos, Vector2 vel, Color color)
 {
-    SpawnParticle(
-        pos,
-        vel,
-        (float)GetRandomValue(3, 6),
-        0.18f,
-        color,
-        (Color){ color.r / 3, color.g / 3, color.b / 3, 0 },
-        0.5f,
-        false
-    );
+    float life = (float)GetRandomValue(15, 30) / 100.0f;
+    float size = (float)GetRandomValue(2, 4);
+    SpawnParticle(pos, vel, size, life, color, (Color){ 20, 60, 120, 0 }, 1.8f, false);
+}
+
+static void AddShockwave(Vector2 pos, float radius, float maxRadius, float speed, float thickness, Color color)
+{
+    for (int i = 0; i < MAX_SHOCKWAVES; i++)
+    {
+        if (!shockwaves[i].active)
+        {
+            shockwaves[i] = (Shockwave){ true, pos, radius, maxRadius, speed, thickness, color };
+            break;
+        }
+    }
 }
 
 void CreateHitSparks(Vector2 pos, Color color, int count)
@@ -117,37 +92,14 @@ void CreateHitSparks(Vector2 pos, Color color, int count)
     for (int i = 0; i < count; i++)
     {
         float angle = ((float)GetRandomValue(0, 360)) * (PI_FLOAT / 180.0f);
-        float speed = (float)GetRandomValue(120, 380);
+        float speed = (float)GetRandomValue(90, 260);
         Vector2 vel = { cosf(angle) * speed, sinf(angle) * speed };
         float size = (float)GetRandomValue(2, 4);
-        float life = (float)GetRandomValue(12, 25) / 100.0f;
-
-        SpawnParticle(
-            pos,
-            vel,
-            size,
-            life,
-            WHITE,
-            Fade(color, 0.0f),
-            4.0f,
-            false
-        );
+        float life = (float)GetRandomValue(15, 35) / 100.0f;
+        Color sparkColor = (i % 3 == 0) ? WHITE : color;
+        SpawnParticle(pos, vel, size, life, sparkColor, (Color){ sparkColor.r, sparkColor.g, sparkColor.b, 0 }, 2.5f, false);
     }
-
-    for (int i = 0; i < MAX_SHOCKWAVES; i++)
-    {
-        if (!shockwaves[i].active)
-        {
-            shockwaves[i].active = true;
-            shockwaves[i].position = pos;
-            shockwaves[i].radius = 3.0f;
-            shockwaves[i].maxRadius = 24.0f;
-            shockwaves[i].speed = 160.0f;
-            shockwaves[i].thickness = 2.0f;
-            shockwaves[i].color = color;
-            break;
-        }
-    }
+    AddShockwave(pos, 4.0f, 28.0f, 220.0f, 2.0f, color);
 }
 
 void AddFloatText(Vector2 pos, const char* text, Color color, int fontSize)
@@ -156,14 +108,8 @@ void AddFloatText(Vector2 pos, const char* text, Color color, int fontSize)
     {
         if (!floatTexts[i].active)
         {
-            floatTexts[i].active = true;
-            floatTexts[i].position = pos;
+            floatTexts[i] = (FloatText){ true, pos, "", 0.85f, 0.85f, color, fontSize };
             strncpy(floatTexts[i].text, text, sizeof(floatTexts[i].text) - 1);
-            floatTexts[i].text[sizeof(floatTexts[i].text) - 1] = '\0';
-            floatTexts[i].timer = 0.85f;
-            floatTexts[i].maxTimer = 0.85f;
-            floatTexts[i].color = color;
-            floatTexts[i].fontSize = fontSize;
             break;
         }
     }
@@ -171,119 +117,44 @@ void AddFloatText(Vector2 pos, const char* text, Color color, int fontSize)
 
 void CreateExplosion(Vector2 pos, EnemyType type, const char* word)
 {
-    int particleCount = 40;
-    float baseSpeed = 240.0f;
-    float shockwaveMax = 70.0f;
-    Color primaryColor = (Color){ 255, 120, 30, 255 };
-    Color secondaryColor = (Color){ 255, 220, 50, 255 };
-
-    if (type == E_MEDIUM_BOSS)
-    {
-        particleCount = 65;
-        baseSpeed = 320.0f;
-        shockwaveMax = 95.0f;
-        primaryColor = (Color){ 255, 180, 20, 255 };
-        secondaryColor = (Color){ 255, 240, 120, 255 };
-        screenShake = fmaxf(screenShake, 7.5f);
-    }
-    else if (type == E_HARD_BOSS)
-    {
-        particleCount = 90;
-        baseSpeed = 400.0f;
-        shockwaveMax = 125.0f;
-        primaryColor = (Color){ 220, 60, 255, 255 };
-        secondaryColor = (Color){ 80, 220, 255, 255 };
-        screenShake = fmaxf(screenShake, 11.0f);
-    }
-    else
-    {
-        screenShake = fmaxf(screenShake, 4.5f);
-    }
+    int particleCount = (type == E_HARD_BOSS) ? 90 : ((type == E_MEDIUM_BOSS) ? 65 : 40);
+    float baseSpeed = (type == E_HARD_BOSS) ? 400.0f : ((type == E_MEDIUM_BOSS) ? 320.0f : 240.0f);
+    float shockwaveMax = (type == E_HARD_BOSS) ? 125.0f : ((type == E_MEDIUM_BOSS) ? 95.0f : 70.0f);
+    Color primaryColor = (type == E_HARD_BOSS) ? (Color){ 220, 60, 255, 255 } :
+                         ((type == E_MEDIUM_BOSS) ? (Color){ 255, 180, 20, 255 } : (Color){ 255, 120, 30, 255 });
+    Color secondaryColor = (type == E_HARD_BOSS) ? (Color){ 80, 220, 255, 255 } :
+                           ((type == E_MEDIUM_BOSS) ? (Color){ 255, 240, 120, 255 } : (Color){ 255, 220, 50, 255 });
+    screenShake = fmaxf(screenShake, (type == E_HARD_BOSS) ? 11.0f : ((type == E_MEDIUM_BOSS) ? 7.5f : 4.5f));
 
     for (int i = 0; i < particleCount / 3; i++)
     {
         float angle = ((float)GetRandomValue(0, 360)) * (PI_FLOAT / 180.0f);
         float speed = (float)GetRandomValue(40, (int)(baseSpeed * 0.6f));
-        Vector2 vel = { cosf(angle) * speed, sinf(angle) * speed };
-        float size = (float)GetRandomValue(6, 14);
-        float life = (float)GetRandomValue(35, 65) / 100.0f;
-
-        SpawnParticle(
-            pos,
-            vel,
-            size,
-            life,
-            secondaryColor,
-            (Color){ 40, 35, 45, 0 },
-            2.5f,
-            true
-        );
+        SpawnParticle(pos, (Vector2){ cosf(angle) * speed, sinf(angle) * speed },
+                      (float)GetRandomValue(6, 14), (float)GetRandomValue(35, 65) / 100.0f,
+                      secondaryColor, (Color){ 40, 35, 45, 0 }, 2.5f, true);
     }
 
     for (int i = 0; i < particleCount; i++)
     {
         float angle = ((float)GetRandomValue(0, 360)) * (PI_FLOAT / 180.0f);
         float speed = (float)GetRandomValue(100, (int)baseSpeed);
-        Vector2 vel = { cosf(angle) * speed, sinf(angle) * speed };
-        float size = (float)GetRandomValue(2, 5);
-        float life = (float)GetRandomValue(25, 55) / 100.0f;
-
         Color startC = (i % 2 == 0) ? WHITE : primaryColor;
-        SpawnParticle(
-            pos,
-            vel,
-            size,
-            life,
-            startC,
-            Fade(secondaryColor, 0.0f),
-            3.2f,
-            false
-        );
+        SpawnParticle(pos, (Vector2){ cosf(angle) * speed, sinf(angle) * speed },
+                      (float)GetRandomValue(2, 5), (float)GetRandomValue(25, 55) / 100.0f,
+                      startC, Fade(secondaryColor, 0.0f), 3.2f, false);
     }
 
-    for (int i = 0; i < MAX_SHOCKWAVES; i++)
-    {
-        if (!shockwaves[i].active)
-        {
-            shockwaves[i].active = true;
-            shockwaves[i].position = pos;
-            shockwaves[i].radius = 8.0f;
-            shockwaves[i].maxRadius = shockwaveMax;
-            shockwaves[i].speed = 280.0f;
-            shockwaves[i].thickness = 3.5f;
-            shockwaves[i].color = secondaryColor;
-            break;
-        }
-    }
-
+    AddShockwave(pos, 8.0f, shockwaveMax, 280.0f, 3.5f, secondaryColor);
     if (type != E_NORMAL)
-    {
-        for (int i = 0; i < MAX_SHOCKWAVES; i++)
-        {
-            if (!shockwaves[i].active)
-            {
-                shockwaves[i].active = true;
-                shockwaves[i].position = pos;
-                shockwaves[i].radius = 4.0f;
-                shockwaves[i].maxRadius = shockwaveMax * 1.3f;
-                shockwaves[i].speed = 360.0f;
-                shockwaves[i].thickness = 2.0f;
-                shockwaves[i].color = primaryColor;
-                break;
-            }
-        }
-    }
+        AddShockwave(pos, 4.0f, shockwaveMax * 1.3f, 360.0f, 2.0f, primaryColor);
 
-    if (word != NULL && strlen(word) > 0)
+    if (word && word[0])
     {
         char buffer[40];
         snprintf(buffer, sizeof(buffer), "+%s", word);
-        AddFloatText(
-            (Vector2){ pos.x, pos.y - 25.0f },
-            buffer,
-            (type == E_NORMAL) ? (Color){ 255, 230, 80, 255 } : (Color){ 255, 100, 220, 255 },
-            20
-        );
+        AddFloatText((Vector2){ pos.x, pos.y - 25.0f }, buffer,
+                     (type == E_NORMAL) ? (Color){ 255, 230, 80, 255 } : (Color){ 255, 100, 220, 255 }, 20);
     }
 }
 
@@ -295,37 +166,26 @@ static void SpawnProjectile(Vector2 origin, Vector2 target,
     {
         if (!projectiles[i].active)
         {
-            projectiles[i].active = true;
-            projectiles[i].position = origin;
-            projectiles[i].target = target;
-            projectiles[i].isKillShot = isKill;
-            projectiles[i].enemyType = enemyType;
-            if (word) strncpy(projectiles[i].targetWord, word, sizeof(projectiles[i].targetWord) - 1);
-            else projectiles[i].targetWord[0] = '\0';
-            projectiles[i].coreColor = coreCol;
-            projectiles[i].glowColor = glowCol;
-            projectiles[i].speed = speed;
-            projectiles[i].length = length;
-            projectiles[i].width = width;
-            projectiles[i].trailCount = 0;
+            LaserProjectile* p = &projectiles[i];
+            p->active = true;
+            p->position = origin;
+            p->target = target;
+            p->isKillShot = isKill;
+            p->enemyType = enemyType;
+            if (word) strncpy(p->targetWord, word, sizeof(p->targetWord) - 1);
+            else p->targetWord[0] = '\0';
+            p->coreColor = coreCol;
+            p->glowColor = glowCol;
+            p->speed = speed;
+            p->length = length;
+            p->width = width;
 
-            float dx = target.x - origin.x;
-            float dy = target.y - origin.y;
+            float dx = target.x - origin.x, dy = target.y - origin.y;
             float dist = sqrtf(dx * dx + dy * dy);
-            if (dist > 0.001f)
-            {
-                projectiles[i].velocity = (Vector2){ (dx / dist) * speed, (dy / dist) * speed };
-            }
-            else
-            {
-                projectiles[i].velocity = (Vector2){ 0.0f, -speed };
-            }
+            p->velocity = (dist > 0.001f) ? (Vector2){ (dx / dist) * speed, (dy / dist) * speed } : (Vector2){ 0.0f, -speed };
 
-            for (int t = 0; t < 6; t++)
-            {
-                projectiles[i].trail[t] = origin;
-            }
-            projectiles[i].trailCount = 1;
+            for (int t = 0; t < 6; t++) p->trail[t] = origin;
+            p->trailCount = 1;
             break;
         }
     }
@@ -333,122 +193,51 @@ static void SpawnProjectile(Vector2 origin, Vector2 target,
 
 void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* word, bool isKillShot)
 {
+    PlayLaserSound(isKillShot);
     if (!isKillShot)
     {
         // Alternate between left and right cannons
-        Vector2 muzzlePos;
-        if (lastCannon == 0)
-        {
-            muzzlePos = GetGunshipLeftMuzzle();
-            gunship.cannonGlowLeft = 0.25f;
-            lastCannon = 1;
-        }
-        else
-        {
-            muzzlePos = GetGunshipRightMuzzle();
-            gunship.cannonGlowRight = 0.25f;
-            lastCannon = 0;
-        }
+        Vector2 muzzlePos = (lastCannon == 0) ? GetGunshipLeftMuzzle() : GetGunshipRightMuzzle();
+        if (lastCannon == 0) { gunship.cannonGlowLeft = 0.25f; lastCannon = 1; }
+        else { gunship.cannonGlowRight = 0.25f; lastCannon = 0; }
 
         AddMuzzleFlash(muzzlePos, (Color){ 0, 240, 255, 255 });
-
         gunship.recoilY = 3.2f;
         gunship.flameBoost = 12.0f;
-
-        SpawnProjectile(
-            muzzlePos,
-            targetPos,
-            false,
-            enemyType,
-            word,
-            (Color){ 240, 255, 255, 255 },
-            (Color){ 0, 220, 255, 200 },
-            3000.0f,
-            26.0f,
-            4.0f
-        );
+        SpawnProjectile(muzzlePos, targetPos, false, enemyType, word,
+                        (Color){ 240, 255, 255, 255 }, (Color){ 0, 220, 255, 200 }, 3000.0f, 26.0f, 4.0f);
     }
     else
     {
         Vector2 leftMuzzle = GetGunshipLeftMuzzle();
         Vector2 rightMuzzle = GetGunshipRightMuzzle();
-
         gunship.cannonGlowLeft = 0.45f;
         gunship.cannonGlowRight = 0.45f;
 
-        Color glowCol;
-        if (enemyType == E_HARD_BOSS)
-        {
-            glowCol = (Color){ 255, 80, 240, 240 };
-        }
-        else if (enemyType == E_MEDIUM_BOSS)
-        {
-            glowCol = (Color){ 255, 190, 40, 240 };
-        }
-        else
-        {
-            glowCol = (Color){ 40, 255, 200, 240 };
-        }
+        Color glowCol = (enemyType == E_HARD_BOSS) ? (Color){ 255, 80, 240, 240 } :
+                        ((enemyType == E_MEDIUM_BOSS) ? (Color){ 255, 190, 40, 240 } : (Color){ 40, 255, 200, 240 });
 
         AddMuzzleFlash(leftMuzzle, glowCol);
         AddMuzzleFlash(rightMuzzle, glowCol);
-
         gunship.recoilY = 6.0f;
         gunship.flameBoost = 22.0f;
 
-        SpawnProjectile(
-            leftMuzzle,
-            targetPos,
-            true,
-            enemyType,
-            word,
-            WHITE,
-            glowCol,
-            3400.0f,
-            38.0f,
-            6.0f
-        );
-
-        SpawnProjectile(
-            rightMuzzle,
-            targetPos,
-            false,
-            enemyType,
-            word,
-            WHITE,
-            glowCol,
-            3400.0f,
-            38.0f,
-            6.0f
-        );
+        SpawnProjectile(leftMuzzle, targetPos, true, enemyType, word, WHITE, glowCol, 3400.0f, 38.0f, 6.0f);
+        SpawnProjectile(rightMuzzle, targetPos, false, enemyType, word, WHITE, glowCol, 3400.0f, 38.0f, 6.0f);
     }
 }
 
 void TriggerMisfire(void)
 {
+    PlayMisfireSound();
     gunship.misfireTimer = 0.15f;
     float shipY = gunship.position.y + gunship.recoilY;
-
-    SpawnParticle(
-        (Vector2){ gunship.position.x - 57.0f, shipY + 10.0f },
-        (Vector2){ (float)GetRandomValue(-40, -10), (float)GetRandomValue(-20, 20) },
-        4.0f,
-        0.15f,
-        RED,
-        Fade(DARKGRAY, 0.0f),
-        2.0f,
-        true
-    );
-    SpawnParticle(
-        (Vector2){ gunship.position.x + 57.0f, shipY + 10.0f },
-        (Vector2){ (float)GetRandomValue(10, 40), (float)GetRandomValue(-20, 20) },
-        4.0f,
-        0.15f,
-        RED,
-        Fade(DARKGRAY, 0.0f),
-        2.0f,
-        true
-    );
+    for (int side = -1; side <= 1; side += 2)
+    {
+        SpawnParticle((Vector2){ gunship.position.x + side * 57.0f, shipY + 10.0f },
+                      (Vector2){ (float)GetRandomValue(side * 10, side * 40), (float)GetRandomValue(-20, 20) },
+                      4.0f, 0.15f, RED, Fade(DARKGRAY, 0.0f), 2.0f, true);
+    }
 }
 
 void UpdateShooting(void)
@@ -460,71 +249,44 @@ void UpdateShooting(void)
         if (projectiles[i].active)
         {
             LaserProjectile* p = &projectiles[i];
-
             if (p->trailCount < 6) p->trailCount++;
             for (int t = p->trailCount - 1; t > 0; t--)
-            {
                 p->trail[t] = p->trail[t - 1];
-            }
             p->trail[0] = p->position;
 
             float dx = p->target.x - p->position.x;
             float dy = p->target.y - p->position.y;
             float dist = sqrtf(dx * dx + dy * dy);
-
             float step = p->speed * dt;
 
             if (dist <= step || dist < 25.0f)
             {
                 p->active = false;
-                Vector2 impactPoint = p->target;
-
-                if (!p->isKillShot)
-                {
-                    CreateHitSparks(impactPoint, p->glowColor, 9);
-                }
-                else
-                {
-                    CreateExplosion(impactPoint, p->enemyType, p->targetWord);
-                }
+                if (!p->isKillShot) CreateHitSparks(p->target, p->glowColor, 9);
+                else CreateExplosion(p->target, p->enemyType, p->targetWord);
             }
             else
             {
-                p->velocity.x = (dx / dist) * p->speed;
-                p->velocity.y = (dy / dist) * p->speed;
-
+                p->velocity = (Vector2){ (dx / dist) * p->speed, (dy / dist) * p->speed };
                 p->position.x += p->velocity.x * dt;
                 p->position.y += p->velocity.y * dt;
-
                 if (p->position.y < -120.0f || p->position.y > SCREEN_HEIGHT + 60.0f ||
                     p->position.x < -100.0f || p->position.x > SCREEN_WIDTH + 100.0f)
-                {
                     p->active = false;
-                }
             }
         }
     }
 
     for (int i = 0; i < MAX_MUZZLE_FLASHES; i++)
-    {
-        if (muzzleFlashes[i].active)
-        {
-            muzzleFlashes[i].timer -= dt;
-            if (muzzleFlashes[i].timer <= 0.0f)
-            {
-                muzzleFlashes[i].active = false;
-            }
-        }
-    }
+        if (muzzleFlashes[i].active && (muzzleFlashes[i].timer -= dt) <= 0.0f)
+            muzzleFlashes[i].active = false;
 
     for (int i = 0; i < MAX_PARTICLES; i++)
     {
         if (particles[i].active)
         {
             VFXParticle* pt = &particles[i];
-            pt->timer -= dt;
-
-            if (pt->timer <= 0.0f)
+            if ((pt->timer -= dt) <= 0.0f)
             {
                 pt->active = false;
             }
@@ -532,49 +294,29 @@ void UpdateShooting(void)
             {
                 pt->velocity.x *= (1.0f - pt->drag * dt);
                 pt->velocity.y *= (1.0f - pt->drag * dt);
-
                 pt->position.x += pt->velocity.x * dt;
                 pt->position.y += pt->velocity.y * dt;
-
-                if (pt->isSmoke)
-                {
-                    pt->size += 7.0f * dt;
-                }
+                if (pt->isSmoke) pt->size += 7.0f * dt;
             }
         }
     }
 
     for (int i = 0; i < MAX_SHOCKWAVES; i++)
-    {
-        if (shockwaves[i].active)
-        {
-            shockwaves[i].radius += shockwaves[i].speed * dt;
-            if (shockwaves[i].radius >= shockwaves[i].maxRadius)
-            {
-                shockwaves[i].active = false;
-            }
-        }
-    }
+        if (shockwaves[i].active && (shockwaves[i].radius += shockwaves[i].speed * dt) >= shockwaves[i].maxRadius)
+            shockwaves[i].active = false;
 
     for (int i = 0; i < MAX_FLOAT_TEXTS; i++)
     {
         if (floatTexts[i].active)
         {
-            floatTexts[i].timer -= dt;
             floatTexts[i].position.y -= 32.0f * dt;
-
-            if (floatTexts[i].timer <= 0.0f)
-            {
-                floatTexts[i].active = false;
-            }
+            if ((floatTexts[i].timer -= dt) <= 0.0f) floatTexts[i].active = false;
         }
     }
 
     if (screenShake > 0.0f)
     {
-        screenShake -= 24.0f * dt;
-        if (screenShake < 0.0f) screenShake = 0.0f;
-
+        screenShake = fmaxf(0.0f, screenShake - 24.0f * dt);
         shakeOffset.x = ((float)GetRandomValue(-100, 100) / 100.0f) * screenShake;
         shakeOffset.y = ((float)GetRandomValue(-100, 100) / 100.0f) * screenShake;
     }
@@ -584,10 +326,7 @@ void UpdateShooting(void)
     }
 }
 
-Vector2 GetScreenShakeOffset(void)
-{
-    return shakeOffset;
-}
+Vector2 GetScreenShakeOffset(void) { return shakeOffset; }
 
 void DrawShootingProjectiles(void)
 {
@@ -596,9 +335,7 @@ void DrawShootingProjectiles(void)
         if (projectiles[i].active)
         {
             LaserProjectile* p = &projectiles[i];
-
-            float dx = p->velocity.x;
-            float dy = p->velocity.y;
+            float dx = p->velocity.x, dy = p->velocity.y;
             float len = sqrtf(dx * dx + dy * dy);
             if (len < 0.001f) continue;
 
@@ -609,16 +346,12 @@ void DrawShootingProjectiles(void)
             for (int t = 0; t < p->trailCount - 1; t++)
             {
                 float trailProgress = 1.0f - ((float)t / (float)p->trailCount);
-                Color trailCol = Fade(p->glowColor, 0.35f * trailProgress);
-                DrawLineEx(p->trail[t], p->trail[t + 1], p->width * 0.8f * trailProgress, trailCol);
+                DrawLineEx(p->trail[t], p->trail[t + 1], p->width * 0.8f * trailProgress, Fade(p->glowColor, 0.35f * trailProgress));
             }
 
             DrawLineEx(tail, tip, p->width * 2.6f, Fade(p->glowColor, 0.35f));
-
             DrawLineEx(tail, tip, p->width * 1.5f, Fade(p->glowColor, 0.85f));
-
-            Vector2 coreTail = { tip.x - dir.x * (p->length * 0.7f), tip.y - dir.y * (p->length * 0.7f) };
-            DrawLineEx(coreTail, tip, p->width * 0.6f, p->coreColor);
+            DrawLineEx((Vector2){ tip.x - dir.x * (p->length * 0.7f), tip.y - dir.y * (p->length * 0.7f) }, tip, p->width * 0.6f, p->coreColor);
 
             DrawCircleV(tip, p->width * 1.3f, Fade(p->glowColor, 0.9f));
             DrawCircleV(tip, p->width * 0.6f, WHITE);
@@ -633,14 +366,10 @@ void DrawShootingEffects(void)
         if (shockwaves[i].active)
         {
             Shockwave* sw = &shockwaves[i];
-            float alpha = 1.0f - (sw->radius / sw->maxRadius);
-            Color ringCol = Fade(sw->color, alpha * 0.85f);
-
+            Color ringCol = Fade(sw->color, (1.0f - sw->radius / sw->maxRadius) * 0.85f);
             DrawCircleLines((int)sw->position.x, (int)sw->position.y, sw->radius, ringCol);
             if (sw->thickness > 1.5f)
-            {
                 DrawCircleLines((int)sw->position.x, (int)sw->position.y, sw->radius + 1.0f, ringCol);
-            }
         }
     }
 
@@ -649,9 +378,7 @@ void DrawShootingEffects(void)
         if (particles[i].active)
         {
             VFXParticle* pt = &particles[i];
-            float lifeProgress = 1.0f - (pt->timer / pt->maxTimer);
-            Color col = LerpColor(pt->startColor, pt->endColor, lifeProgress);
-
+            Color col = LerpColor(pt->startColor, pt->endColor, 1.0f - pt->timer / pt->maxTimer);
             if (pt->isSmoke)
             {
                 DrawCircleV(pt->position, pt->size, col);
@@ -662,11 +389,9 @@ void DrawShootingEffects(void)
                 if (speed > 40.0f)
                 {
                     float tailLen = fminf(speed * 0.04f, 10.0f);
-                    Vector2 tail = {
-                        pt->position.x - (pt->velocity.x / speed) * tailLen,
-                        pt->position.y - (pt->velocity.y / speed) * tailLen
-                    };
-                    DrawLineEx(tail, pt->position, pt->size * 0.8f, col);
+                    DrawLineEx((Vector2){ pt->position.x - (pt->velocity.x / speed) * tailLen,
+                                          pt->position.y - (pt->velocity.y / speed) * tailLen },
+                               pt->position, pt->size * 0.8f, col);
                 }
                 DrawCircleV(pt->position, pt->size * 0.6f, col);
             }
@@ -687,18 +412,8 @@ void DrawShootingEffects(void)
 
             float flareLen = curRadius * 2.2f;
             Color flareCol = Fade(WHITE, 0.75f * progress);
-            DrawLineEx(
-                (Vector2){ mf->position.x - flareLen, mf->position.y },
-                (Vector2){ mf->position.x + flareLen, mf->position.y },
-                1.5f,
-                flareCol
-            );
-            DrawLineEx(
-                (Vector2){ mf->position.x, mf->position.y - flareLen },
-                (Vector2){ mf->position.x, mf->position.y + flareLen },
-                1.5f,
-                flareCol
-            );
+            DrawLineEx((Vector2){ mf->position.x - flareLen, mf->position.y }, (Vector2){ mf->position.x + flareLen, mf->position.y }, 1.5f, flareCol);
+            DrawLineEx((Vector2){ mf->position.x, mf->position.y - flareLen }, (Vector2){ mf->position.x, mf->position.y + flareLen }, 1.5f, flareCol);
         }
     }
 
@@ -709,9 +424,7 @@ void DrawShootingEffects(void)
             FloatText* ft = &floatTexts[i];
             float alpha = ft->timer / ft->maxTimer;
             int textWidth = MeasureText(ft->text, ft->fontSize);
-            int drawX = (int)ft->position.x - textWidth / 2;
-            int drawY = (int)ft->position.y;
-
+            int drawX = (int)ft->position.x - textWidth / 2, drawY = (int)ft->position.y;
             DrawText(ft->text, drawX + 1, drawY + 1, ft->fontSize, Fade(BLACK, alpha * 0.8f));
             DrawText(ft->text, drawX, drawY, ft->fontSize, Fade(ft->color, alpha));
         }
@@ -721,61 +434,25 @@ void DrawShootingEffects(void)
 void TriggerSonicWaveVFX(Vector2 origin)
 {
     screenShake = 22.0f;
-
     Color colors[5] = {
-        (Color){ 0, 240, 255, 255 },
-        WHITE,
-        (Color){ 100, 210, 255, 255 },
-        (Color){ 220, 80, 255, 255 },
-        (Color){ 50, 255, 200, 255 }
+        (Color){ 0, 240, 255, 255 }, WHITE, (Color){ 100, 210, 255, 255 },
+        (Color){ 220, 80, 255, 255 }, (Color){ 50, 255, 200, 255 }
     };
 
     for (int k = 0; k < 5; k++)
-    {
-        for (int i = 0; i < MAX_SHOCKWAVES; i++)
-        {
-            if (!shockwaves[i].active)
-            {
-                shockwaves[i].active = true;
-                shockwaves[i].position = origin;
-                shockwaves[i].radius = 12.0f + k * 20.0f;
-                shockwaves[i].maxRadius = 850.0f;
-                shockwaves[i].speed = 750.0f + k * 140.0f;
-                shockwaves[i].thickness = 5.5f - k * 0.7f;
-                shockwaves[i].color = colors[k];
-                break;
-            }
-        }
-    }
+        AddShockwave(origin, 12.0f + k * 20.0f, 850.0f, 750.0f + k * 140.0f, 5.5f - k * 0.7f, colors[k]);
 
     for (int i = 0; i < 120; i++)
     {
         float angle = ((float)GetRandomValue(0, 360)) * (PI_FLOAT / 180.0f);
         float speed = (float)GetRandomValue(160, 650);
-        Vector2 vel = { cosf(angle) * speed, sinf(angle) * speed };
-        float size = (float)GetRandomValue(3, 7);
-        float life = (float)GetRandomValue(40, 85) / 100.0f;
-
         Color startC = (i % 3 == 0) ? WHITE : ((i % 3 == 1) ? (Color){ 0, 240, 255, 255 } : (Color){ 220, 80, 255, 255 });
-        SpawnParticle(
-            origin,
-            vel,
-            size,
-            life,
-            startC,
-            (Color){ 0, 80, 180, 0 },
-            1.6f,
-            false
-        );
+        SpawnParticle(origin, (Vector2){ cosf(angle) * speed, sinf(angle) * speed },
+                      (float)GetRandomValue(3, 7), (float)GetRandomValue(40, 85) / 100.0f,
+                      startC, (Color){ 0, 80, 180, 0 }, 1.6f, false);
     }
 
-    AddFloatText(
-        (Vector2){ origin.x, origin.y - 80.0f },
-        "⚡ SONIC WAVE DETONATED! ⚡",
-        (Color){ 0, 240, 255, 255 },
-        24
-    );
-
+    AddFloatText((Vector2){ origin.x, origin.y - 80.0f }, "⚡ SONIC WAVE DETONATED! ⚡", (Color){ 0, 240, 255, 255 }, 24);
     gunship.flameBoost = 40.0f;
     gunship.cannonGlowLeft = 0.9f;
     gunship.cannonGlowRight = 0.9f;

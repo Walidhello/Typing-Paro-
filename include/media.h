@@ -15,4 +15,7 @@ bool HasCustomMusic(void);
 void ToggleMusicMute(void);
 bool IsMusicMuted(void);
 
+void PlayLaserSound(bool isKillShot);
+void PlayMisfireSound(void);
+
 #endif

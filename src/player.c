@@ -5,42 +5,17 @@ Player player;
 
 void InitPlayer(void)
 {
-    player.position.x = SCREEN_WIDTH / 2;
-    player.position.y = SCREEN_HEIGHT - 60;
-    
-    player.texture = LoadTexture("assets/player.png"); 
-    
-    player.width = player.texture.width;
-    player.height = player.texture.height;
+    player.position = (Vector2){ SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT - 60.0f };
+    player.width = 0;
+    player.height = 0;
 }
 
-void UpdatePlayer(void)
-{
-}
-
-void DrawPlayer(void)
-{
-    DrawTexture(
-        player.texture, 
-        player.position.x - player.width / 2, 
-        player.position.y - player.height / 2, 
-        WHITE
-    );
-}
+void UpdatePlayer(void) {}
+void DrawPlayer(void) {}
 
 Rectangle GetPlayerRectangle(void)
 {
-    Rectangle myBox;
-    
-    myBox.x = player.position.x - player.width/2;
-    myBox.y = player.position.y - player.height/2;
-    myBox.width = player.width;
-    myBox.height = player.height;
-    
-    return myBox; 
+    return (Rectangle){ player.position.x, player.position.y, 0, 0 };
 }
 
-void UnloadPlayer(void)
-{
-    UnloadTexture(player.texture);
-}
+void UnloadPlayer(void) {}
