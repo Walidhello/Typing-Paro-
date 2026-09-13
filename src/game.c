@@ -266,7 +266,7 @@ static void UpdatePlaying(void)
         bool hover = CheckCollisionPointRec(mouse, BTN_HUD_SONIC) || CheckCollisionPointRec(mouse, BTN_HUD_PAUSE);
         SetMouseCursor(hover ? MOUSE_CURSOR_POINTING_HAND : MOUSE_CURSOR_DEFAULT);
 
-        if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_P) ||
+        if (IsKeyPressed(KEY_ESCAPE) ||
             (CheckCollisionPointRec(mouse, BTN_HUD_PAUSE) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)))
         {
             isPaused = true;
