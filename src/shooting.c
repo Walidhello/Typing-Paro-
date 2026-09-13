@@ -172,7 +172,7 @@ void CreateHitSparks(Vector2 pos, Color color, int count)
 //--------------------------------------------------
 // Floating Combat Text
 //--------------------------------------------------
-static void AddFloatText(Vector2 pos, const char* text, Color color, int fontSize)
+void AddFloatText(Vector2 pos, const char* text, Color color, int fontSize)
 {
     for (int i = 0; i < MAX_FLOAT_TEXTS; i++)
     {
@@ -370,26 +370,24 @@ static void SpawnProjectile(Vector2 origin, Vector2 target,
 //--------------------------------------------------
 void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* word, bool isKillShot)
 {
-    float shipY = gunship.position.y + gunship.recoilY;
-
     if (!isKillShot)
     {
-        // Alternating single cannon fire
+        // Alternating single cannon fire from rotated muzzle tips
         Vector2 muzzlePos;
         if (lastCannon == 0)
         {
-            muzzlePos = (Vector2){ gunship.position.x - 21.5f, shipY - 12.0f };
+            muzzlePos = GetGunshipLeftMuzzle();
             gunship.cannonGlowLeft = 0.25f;
             lastCannon = 1;
         }
         else
         {
-            muzzlePos = (Vector2){ gunship.position.x + 21.5f, shipY - 12.0f };
+            muzzlePos = GetGunshipRightMuzzle();
             gunship.cannonGlowRight = 0.25f;
             lastCannon = 0;
         }
 
-        // Muzzle flash
+        // Muzzle flash at rotated muzzle position
         AddMuzzleFlash(muzzlePos, (Color){ 0, 240, 255, 255 });
 
         // Gunship dynamics
@@ -412,9 +410,9 @@ void FireLaserAtPosition(Vector2 targetPos, EnemyType enemyType, const char* wor
     }
     else
     {
-        // Dual Cannon Super Blast on Kill Shot!
-        Vector2 leftMuzzle = { gunship.position.x - 21.5f, shipY - 12.0f };
-        Vector2 rightMuzzle = { gunship.position.x + 21.5f, shipY - 12.0f };
+        // Dual Cannon Super Blast on Kill Shot from rotated muzzle tips!
+        Vector2 leftMuzzle = GetGunshipLeftMuzzle();
+        Vector2 rightMuzzle = GetGunshipRightMuzzle();
 
         gunship.cannonGlowLeft = 0.45f;
         gunship.cannonGlowRight = 0.45f;
@@ -798,4 +796,74 @@ void DrawShootingEffects(void)
             DrawText(ft->text, drawX, drawY, ft->fontSize, Fade(ft->color, alpha));
         }
     }
+}
+
+//--------------------------------------------------
+// Trigger Sonic Wave Visual & Physics Blast
+//--------------------------------------------------
+void TriggerSonicWaveVFX(Vector2 origin)
+{
+    screenShake = 22.0f;
+
+    // 1. Spawns 5 concentric expanding shockwaves of varying radii, speeds, and colors
+    Color colors[5] = {
+        (Color){ 0, 240, 255, 255 },   // Cyan
+        WHITE,                          // Pure white core
+        (Color){ 100, 210, 255, 255 }, // Electric SkyBlue
+        (Color){ 220, 80, 255, 255 },  // EMP Violet
+        (Color){ 50, 255, 200, 255 }   // Bright Turquoise
+    };
+
+    for (int k = 0; k < 5; k++)
+    {
+        for (int i = 0; i < MAX_SHOCKWAVES; i++)
+        {
+            if (!shockwaves[i].active)
+            {
+                shockwaves[i].active = true;
+                shockwaves[i].position = origin;
+                shockwaves[i].radius = 12.0f + k * 20.0f;
+                shockwaves[i].maxRadius = 850.0f;
+                shockwaves[i].speed = 750.0f + k * 140.0f;
+                shockwaves[i].thickness = 5.5f - k * 0.7f;
+                shockwaves[i].color = colors[k];
+                break;
+            }
+        }
+    }
+
+    // 2. High-energy electric particle blast (120 particles)
+    for (int i = 0; i < 120; i++)
+    {
+        float angle = ((float)GetRandomValue(0, 360)) * (PI_FLOAT / 180.0f);
+        float speed = (float)GetRandomValue(160, 650);
+        Vector2 vel = { cosf(angle) * speed, sinf(angle) * speed };
+        float size = (float)GetRandomValue(3, 7);
+        float life = (float)GetRandomValue(40, 85) / 100.0f;
+
+        Color startC = (i % 3 == 0) ? WHITE : ((i % 3 == 1) ? (Color){ 0, 240, 255, 255 } : (Color){ 220, 80, 255, 255 });
+        SpawnParticle(
+            origin,
+            vel,
+            size,
+            life,
+            startC,
+            (Color){ 0, 80, 180, 0 },
+            1.6f,
+            false
+        );
+    }
+
+    // 3. Floating combat text
+    AddFloatText(
+        (Vector2){ origin.x, origin.y - 80.0f },
+        "⚡ SONIC WAVE DETONATED! ⚡",
+        (Color){ 0, 240, 255, 255 },
+        24
+    );
+
+    // 4. Boost gunship thrusters and cannon flares
+    gunship.flameBoost = 40.0f;
+    gunship.cannonGlowLeft = 0.9f;
+    gunship.cannonGlowRight = 0.9f;
 }

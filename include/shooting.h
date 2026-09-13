@@ -6,10 +6,10 @@
 #include <stdbool.h>
 
 #define MAX_PROJECTILES 64
-#define MAX_PARTICLES 300
+#define MAX_PARTICLES 800
 #define MAX_MUZZLE_FLASHES 16
-#define MAX_SHOCKWAVES 12
-#define MAX_FLOAT_TEXTS 10
+#define MAX_SHOCKWAVES 40
+#define MAX_FLOAT_TEXTS 20
 
 // Laser Projectile
 typedef struct {
@@ -87,6 +87,8 @@ void CreateExplosion(Vector2 pos, EnemyType type, const char* word);
 void CreateHitSparks(Vector2 pos, Color color, int count);
 void AddMuzzleFlash(Vector2 pos, Color color);
 void AddExhaustParticle(Vector2 pos, Vector2 vel, Color color);
+void AddFloatText(Vector2 pos, const char* text, Color color, int fontSize);
+void TriggerSonicWaveVFX(Vector2 origin);
 
 Vector2 GetScreenShakeOffset(void);
 

@@ -13,37 +13,13 @@ Leaderboard leaderboard;
 //--------------------------------------------------
 static void PopulateDefaults(void)
 {
-    leaderboard.count = 5;
+    leaderboard.count = 1;
 
-    strncpy(leaderboard.entries[0].name, "CYBER_ACE", LEADERBOARD_NAME_LEN);
+    strncpy(leaderboard.entries[0].name, "Walid", LEADERBOARD_NAME_LEN);
     leaderboard.entries[0].score = 4850;
     leaderboard.entries[0].level = 8;
     leaderboard.entries[0].accuracy = 98.4f;
     leaderboard.entries[0].wpm = 72;
-
-    strncpy(leaderboard.entries[1].name, "VALKYRIE", LEADERBOARD_NAME_LEN);
-    leaderboard.entries[1].score = 3920;
-    leaderboard.entries[1].level = 7;
-    leaderboard.entries[1].accuracy = 96.1f;
-    leaderboard.entries[1].wpm = 65;
-
-    strncpy(leaderboard.entries[2].name, "NEO_PILOT", LEADERBOARD_NAME_LEN);
-    leaderboard.entries[2].score = 3100;
-    leaderboard.entries[2].level = 6;
-    leaderboard.entries[2].accuracy = 94.8f;
-    leaderboard.entries[2].wpm = 58;
-
-    strncpy(leaderboard.entries[3].name, "NOVA_GUNNER", LEADERBOARD_NAME_LEN);
-    leaderboard.entries[3].score = 2450;
-    leaderboard.entries[3].level = 5;
-    leaderboard.entries[3].accuracy = 93.2f;
-    leaderboard.entries[3].wpm = 52;
-
-    strncpy(leaderboard.entries[4].name, "ROOKIE_ONE", LEADERBOARD_NAME_LEN);
-    leaderboard.entries[4].score = 1500;
-    leaderboard.entries[4].level = 3;
-    leaderboard.entries[4].accuracy = 91.0f;
-    leaderboard.entries[4].wpm = 40;
 }
 
 //--------------------------------------------------
@@ -107,7 +83,7 @@ void SaveLeaderboard(void)
     FILE* fp = fopen(LEADERBOARD_FILE, "w");
     if (!fp) return;
 
-    for (int i = 0; i < leaderboard.count; i++)
+    for (int i = 0; i < leaderboard.count; i++)\
     {
         fprintf(fp, "%s,%d,%d,%.1f,%d\n",
                 leaderboard.entries[i].name,
@@ -121,7 +97,7 @@ void SaveLeaderboard(void)
 }
 
 //--------------------------------------------------
-// Add New Entry to Leaderboard (Sorted descending)
+// Add New Entry to Leaderboard (Sorted descending by score)
 //--------------------------------------------------
 int AddLeaderboardEntry(const char* name, int score, int level, float accuracy, int wpm)
 {
@@ -155,7 +131,7 @@ int AddLeaderboardEntry(const char* name, int score, int level, float accuracy, 
         leaderboard.entries[i] = leaderboard.entries[i - 1];
     }
 
-    // Insert new entry
+    // Insert new entry with actual Average WPM
     strncpy(leaderboard.entries[insertIdx].name, cleanName, LEADERBOARD_NAME_LEN - 1);
     leaderboard.entries[insertIdx].name[LEADERBOARD_NAME_LEN - 1] = '\0';
     leaderboard.entries[insertIdx].score = score;
@@ -193,26 +169,26 @@ void DrawLeaderboardScreen(int highlightRank)
     DrawText(title, screenW / 2 - titleW / 2 + 2, 77, 34, (Color){ 0, 100, 180, 150 });
     DrawText(title, screenW / 2 - titleW / 2, 75, 34, (Color){ 0, 240, 255, 255 });
 
-    const char* sub = "TOP INTERCEPTOR PILOTS";
-    int subW = MeasureText(sub, 16);
-    DrawText(sub, screenW / 2 - subW / 2, 118, 16, (Color){ 160, 190, 220, 200 });
+    const char* sub = "TOP INTERCEPTOR PILOTS // RECORDED AVERAGE WPM";
+    int subW = MeasureText(sub, 15);
+    DrawText(sub, screenW / 2 - subW / 2, 118, 15, (Color){ 160, 190, 220, 200 });
 
     DrawLine(90, 145, screenW - 90, 145, (Color){ 40, 100, 160, 180 });
 
     // Column Headers
     int colRank = 90;
     int colName = 170;
-    int colScore = 380;
-    int colLvl = 510;
-    int colAcc = 590;
-    int colWpm = 680;
+    int colScore = 370;
+    int colLvl = 490;
+    int colAcc = 570;
+    int colWpm = 665;
 
     DrawText("RANK", colRank, 160, 16, (Color){ 120, 160, 200, 255 });
     DrawText("PILOT", colName, 160, 16, (Color){ 120, 160, 200, 255 });
     DrawText("SCORE", colScore, 160, 16, (Color){ 120, 160, 200, 255 });
     DrawText("LEVEL", colLvl, 160, 16, (Color){ 120, 160, 200, 255 });
     DrawText("ACCURACY", colAcc, 160, 16, (Color){ 120, 160, 200, 255 });
-    DrawText("WPM", colWpm, 160, 16, (Color){ 120, 160, 200, 255 });
+    DrawText("AVG WPM", colWpm, 160, 16, (Color){ 120, 160, 200, 255 });
 
     DrawLine(90, 185, screenW - 90, 185, (Color){ 30, 60, 100, 255 });
 
@@ -268,18 +244,25 @@ void DrawLeaderboardScreen(int highlightRank)
         snprintf(accStr, sizeof(accStr), "%.1f%%", leaderboard.entries[i].accuracy);
         DrawText(accStr, colAcc, rowY + 5, 18, (Color){ 255, 220, 80, 255 });
 
-        // WPM
-        char wpmStr[8];
-        snprintf(wpmStr, sizeof(wpmStr), "%d", leaderboard.entries[i].wpm);
+        // Average WPM
+        char wpmStr[16];
+        snprintf(wpmStr, sizeof(wpmStr), "%d WPM", leaderboard.entries[i].wpm);
         DrawText(wpmStr, colWpm, rowY + 5, 18, (Color){ 80, 255, 150, 255 });
     }
 
     // Return button / footer
     DrawLine(90, screenH - 120, screenW - 90, screenH - 120, (Color){ 40, 100, 160, 180 });
 
-    const char* hint = "PRESS [ESC] OR [ENTER] TO RETURN TO MENU";
-    int hintW = MeasureText(hint, 16);
-    DrawText(hint, screenW / 2 - hintW / 2, screenH - 95, 16, (Color){ 140, 180, 220, 220 });
+    Rectangle backBtn = { (float)(screenW / 2 - 130), (float)(screenH - 105), 260.0f, 42.0f };
+    Vector2 mouse = GetMousePosition();
+    bool backHover = CheckCollisionPointRec(mouse, backBtn);
+
+    DrawRectangleRec(backBtn, backHover ? (Color){ 0, 190, 240, 255 } : (Color){ 20, 45, 80, 255 });
+    DrawRectangleLinesEx(backBtn, 1.5f, backHover ? WHITE : (Color){ 0, 220, 255, 255 });
+
+    const char* bText = "RETURN TO MENU [ESC]";
+    int btW = MeasureText(bText, 15);
+    DrawText(bText, screenW / 2 - btW / 2, screenH - 92, 15, backHover ? BLACK : WHITE);
 }
 
 //--------------------------------------------------
@@ -288,9 +271,12 @@ void DrawLeaderboardScreen(int highlightRank)
 void DrawLeaderboardMini(int startX, int startY, int width, int highlightRank)
 {
     DrawRectangle(startX, startY, width, 180, (Color){ 14, 18, 30, 230 });
-    DrawRectangleLinesEx((Rectangle){ startX, startY, width, 180 }, 1.5f, (Color){ 40, 120, 200, 180 });
+    DrawRectangleLinesEx((Rectangle){ (float)startX, (float)startY, (float)width, 180.0f }, 1.5f, (Color){ 40, 120, 200, 180 });
 
     DrawText("HALL OF FAME - TOP RECORDS", startX + 15, startY + 12, 16, (Color){ 0, 230, 255, 255 });
+    DrawText("AVG WPM", startX + width - 210, startY + 14, 12, (Color){ 120, 160, 200, 220 });
+    DrawText("SCORE", startX + width - 85, startY + 14, 12, (Color){ 120, 160, 200, 220 });
+
     DrawLine(startX + 15, startY + 34, startX + width - 15, startY + 34, (Color){ 30, 60, 100, 200 });
 
     int maxShow = (leaderboard.count < 5) ? leaderboard.count : 5;
@@ -308,6 +294,12 @@ void DrawLeaderboardMini(int startX, int startY, int width, int highlightRank)
 
         DrawText(leaderboard.entries[i].name, startX + 65, rowY, 15, rowCol);
 
+        // Average WPM
+        char wpmMiniStr[16];
+        snprintf(wpmMiniStr, sizeof(wpmMiniStr), "%d WPM", leaderboard.entries[i].wpm);
+        DrawText(wpmMiniStr, startX + width - 215, rowY, 15, (Color){ 80, 255, 150, 255 });
+
+        // Score
         char scoreStr[16];
         snprintf(scoreStr, sizeof(scoreStr), "%d PTS", leaderboard.entries[i].score);
         int scoreW = MeasureText(scoreStr, 15);

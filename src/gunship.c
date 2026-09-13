@@ -1,7 +1,11 @@
 #include "gunship.h"
 #include "game.h"
+#include "enemy.h"
 #include "shooting.h"
+#include "rlgl.h"
 #include <math.h>
+
+#define PI_FLOAT 3.14159265358979323846f
 
 Gunship gunship;
 
@@ -12,6 +16,8 @@ void InitGunship(void)
 
     gunship.position.x = SCREEN_WIDTH / 2.0f;
     gunship.position.y = SCREEN_HEIGHT - 90;
+    gunship.rotation = 0.0f;
+    gunship.targetRotation = 0.0f;
     gunship.recoilY = 0.0f;
     gunship.cannonGlowLeft = 0.0f;
     gunship.cannonGlowRight = 0.0f;
@@ -22,6 +28,37 @@ void InitGunship(void)
 void UpdateGunship(void)
 {
     float dt = GetFrameTime();
+
+    // =====================================================
+    // SMOOTH ROTATION TO LOCKED ENEMY
+    // =====================================================
+    float targetAngle = 0.0f;
+
+    // Check if an enemy is currently locked on and active
+    if (targetEnemy >= 0 && targetEnemy < MAX_ENEMIES && enemies[targetEnemy].active)
+    {
+        float dx = enemies[targetEnemy].x - gunship.position.x;
+        float dy = enemies[targetEnemy].y - (gunship.position.y + gunship.recoilY);
+
+        // atan2f(dy, dx) returns angle where right = 0 deg, up = -90 deg.
+        // Adding 90 deg aligns straight up (dx=0, dy=-1) with 0 deg.
+        targetAngle = atan2f(dy, dx) * (180.0f / PI_FLOAT) + 90.0f;
+    }
+
+    gunship.targetRotation = targetAngle;
+
+    // Shortest-path angular difference (handles -180 to +180 wrap)
+    float diff = gunship.targetRotation - gunship.rotation;
+    while (diff > 180.0f) diff -= 360.0f;
+    while (diff < -180.0f) diff += 360.0f;
+
+    // Critically damped exponential decay for silky smooth tracking
+    float turnSpeed = 14.0f;
+    gunship.rotation += diff * (1.0f - expf(-turnSpeed * dt));
+
+    // =====================================================
+    // RECOIL & EFFECT TIMERS
+    // =====================================================
 
     // Smooth recoil spring recovery
     if (gunship.recoilY > 0.0f)
@@ -56,28 +93,91 @@ void UpdateGunship(void)
         if (gunship.misfireTimer < 0.0f) gunship.misfireTimer = 0.0f;
     }
 
-    // Emit subtle engine thrust particles
+    // =====================================================
+    // ROTATED ENGINE THRUST PARTICLES
+    // =====================================================
     float shipY = gunship.position.y + gunship.recoilY;
     if (GetRandomValue(0, 2) == 0)
     {
         float speed = (float)GetRandomValue(70, 140) + gunship.flameBoost * 2.0f;
-        AddExhaustParticle(
-            (Vector2){ gunship.position.x - 25.0f + GetRandomValue(-4, 4), shipY + 45.0f },
-            (Vector2){ (float)GetRandomValue(-10, 10), speed },
-            (Color){ 0, 180, 255, 200 }
-        );
-        AddExhaustParticle(
-            (Vector2){ gunship.position.x + 25.0f + GetRandomValue(-4, 4), shipY + 45.0f },
-            (Vector2){ (float)GetRandomValue(-10, 10), speed },
-            (Color){ 0, 180, 255, 200 }
-        );
+        float rad = gunship.rotation * (PI_FLOAT / 180.0f);
+        float cosA = cosf(rad);
+        float sinA = sinf(rad);
+
+        // Rotated nozzle locations (local offsets: (-25, 45) and (+25, 45))
+        Vector2 leftNozzle = {
+            gunship.position.x + (-25.0f * cosA - 45.0f * sinA),
+            shipY + (-25.0f * sinA + 45.0f * cosA)
+        };
+        Vector2 rightNozzle = {
+            gunship.position.x + (25.0f * cosA - 45.0f * sinA),
+            shipY + (25.0f * sinA + 45.0f * cosA)
+        };
+
+        // Exhaust velocity sprays backward (opposite of ship's heading)
+        Vector2 backDir = { -sinA, cosA };
+        Vector2 exhaustVelL = {
+            backDir.x * speed + (float)GetRandomValue(-10, 10),
+            backDir.y * speed + (float)GetRandomValue(-5, 5)
+        };
+        Vector2 exhaustVelR = {
+            backDir.x * speed + (float)GetRandomValue(-10, 10),
+            backDir.y * speed + (float)GetRandomValue(-5, 5)
+        };
+
+        AddExhaustParticle(leftNozzle, exhaustVelL, (Color){ 0, 180, 255, 200 });
+        AddExhaustParticle(rightNozzle, exhaustVelR, (Color){ 0, 180, 255, 200 });
     }
 }
 
+//--------------------------------------------------
+// Calculate Rotated Cannon Muzzle Positions
+//--------------------------------------------------
+Vector2 GetGunshipLeftMuzzle(void)
+{
+    float rad = gunship.rotation * (PI_FLOAT / 180.0f);
+    float cosA = cosf(rad);
+    float sinA = sinf(rad);
+
+    float localX = -21.5f;
+    float localY = -12.0f;
+    float shipY = gunship.position.y + gunship.recoilY;
+
+    return (Vector2){
+        gunship.position.x + (localX * cosA - localY * sinA),
+        shipY + (localX * sinA + localY * cosA)
+    };
+}
+
+Vector2 GetGunshipRightMuzzle(void)
+{
+    float rad = gunship.rotation * (PI_FLOAT / 180.0f);
+    float cosA = cosf(rad);
+    float sinA = sinf(rad);
+
+    float localX = 21.5f;
+    float localY = -12.0f;
+    float shipY = gunship.position.y + gunship.recoilY;
+
+    return (Vector2){
+        gunship.position.x + (localX * cosA - localY * sinA),
+        shipY + (localX * sinA + localY * cosA)
+    };
+}
+
+//--------------------------------------------------
+// Draw Gunship with Hardware Matrix Rotation
+//--------------------------------------------------
 void DrawGunship(void)
 {
     float x = gunship.position.x;
     float y = gunship.position.y + gunship.recoilY;
+
+    // Apply smooth hardware rotation around gunship center
+    rlPushMatrix();
+    rlTranslatef(x, y, 0.0f);
+    rlRotatef(gunship.rotation, 0.0f, 0.0f, 1.0f);
+    rlTranslatef(-x, -y, 0.0f);
 
     // =====================================================
     // DYNAMIC ENGINE FLAMES
@@ -308,4 +408,6 @@ void DrawGunship(void)
         y + 27,
         LIGHTGRAY
     );
+
+    rlPopMatrix();
 }

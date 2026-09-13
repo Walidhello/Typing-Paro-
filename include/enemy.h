@@ -12,9 +12,9 @@
 // Enemy Types
 //------------------------------------
 typedef enum {
-    E_NORMAL,
-    E_MEDIUM_BOSS,
-    E_HARD_BOSS
+    E_NORMAL,       // Small spaceship (Scout Interceptor)
+    E_MEDIUM_BOSS,  // Bigger spaceship (Heavy Battlecruiser)
+    E_HARD_BOSS     // Space docking station (Orbital Starbase)
 } EnemyType;
 
 //------------------------------------
@@ -33,6 +33,7 @@ typedef struct {
     float pivotY;
     bool headingToPlayer;
     float hitFlashTimer;
+    float minionSpawnTimer; // 2-second periodic minion spawning for Hard Boss
 } Enemy;
 
 extern Enemy enemies[MAX_ENEMIES];
